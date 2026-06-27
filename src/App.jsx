@@ -3,8 +3,8 @@ import { useState, useEffect, useCallback } from "react";
 // ============================================================
 // ⚙️  CONFIGURAÇÕES — preencha após criar a conta no Supabase
 // ============================================================
-const SUPABASE_URL  = "COLE_AQUI_A_URL_DO_SUPABASE";       // ex: https://xyzxyz.supabase.co
-const SUPABASE_ANON = "COLE_AQUI_A_ANON_KEY_DO_SUPABASE";  // chave anon/public
+const SUPABASE_URL  = "https://juqsrwtfwujnievhftgi.supabase.co";
+const SUPABASE_ANON = "sb_publishable_8sFebEhMSp0askniYLBRSg_PtyWGvXB";
 
 const WHATSAPP_NUMBER = "5511988670054";
 const ADMIN_EMAIL     = "seuemail@email.com";   // ← troque
