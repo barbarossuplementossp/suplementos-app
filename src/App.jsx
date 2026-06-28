@@ -3,8 +3,8 @@ import React, { useState, useEffect, useCallback } from "react";
 const SUPABASE_URL   = "https://juqsrwtfwujnievhftgi.supabase.co";
 const SUPABASE_ANON  = "sb_publishable_8sFebEhMSp0askniYLBRSg_PtyWGvXB";
 const WHATSAPP_NUMBER = "5511988670054";
-const ADMIN_EMAIL    = "seuemail@email.com";
-const ADMIN_SENHA    = "suasenha123";
+const ADMIN_EMAIL    = "barbarossuplementossp@gmail.com";
+const ADMIN_SENHA    = "D04m007aA*";
 const ADMIN_DEVICE_KEY = "supp_auth_device_v2";
 const ADMIN_TOKEN    = "tk_" + btoa(ADMIN_EMAIL + ":" + ADMIN_SENHA).slice(0, 24);
 
