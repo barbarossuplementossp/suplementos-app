@@ -28,11 +28,11 @@ const db = {
   async update(table, id, body) {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
       method: "PATCH",
-      headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}`, "Content-Type": "application/json", Prefer: "return=representation" },
+      headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}`, "Content-Type": "application/json" },
       body: JSON.stringify(body)
     });
     if (!r.ok) throw new Error(await r.text());
-    return r.json();
+    return true;
   },
   async delete(table, id) {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
@@ -424,7 +424,7 @@ function ProductForm({ initial, onSave, onClose }) {
 
 // ── ADMIN MOBILE ─────────────────────────────────────────────
 function AdminMobile({ data, actions }) {
-  const { products, pedidos, sales, usuarios, config, loadingP, loadingPedidos, loadingS, alertDays, alerts, totalValue, monthRevenue, monthlySales } = data;
+  const { products, pedidos, rejeitados, sales, usuarios, config, loadingP, loadingPedidos, loadingS, alertDays, alerts, totalValue, monthRevenue, monthlySales } = data;
   const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, saveConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast } = actions;
   const [tab, setTab] = useState("pedidos");
   const [search, setSearch] = useState("");
@@ -467,7 +467,7 @@ function AdminMobile({ data, actions }) {
         </div>
       </div>
       <div style={{padding:16}}>
-        {tab==="pedidos" && <PedidosView pedidos={pedidos} loading={loadingPedidos} onConfirm={confirmarPedido} onReject={rejeitarPedido}/>}
+        {tab==="pedidos" && <PedidosView pedidos={pedidos} rejeitados={rejeitados} loading={loadingPedidos} onConfirm={confirmarPedido} onReject={rejeitarPedido}/>}
         {tab==="estoque" && (
           <>
             <div style={{display:"flex",gap:8,marginBottom:12}}>
@@ -520,7 +520,7 @@ function AdminMobile({ data, actions }) {
 
 // ── ADMIN DESKTOP ─────────────────────────────────────────────
 function AdminDesktop({ data, actions }) {
-  const { products, pedidos, sales, usuarios, config, loadingP, loadingPedidos, loadingS, alertDays, alerts, totalValue, monthRevenue, monthlySales } = data;
+  const { products, pedidos, rejeitados, sales, usuarios, config, loadingP, loadingPedidos, loadingS, alertDays, alerts, totalValue, monthRevenue, monthlySales } = data;
   const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, saveConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast } = actions;
   const [tab, setTab] = useState("overview");
   const [search, setSearch] = useState("");
@@ -663,51 +663,8 @@ function AdminDesktop({ data, actions }) {
         {/* PEDIDOS */}
         {tab==="pedidos" && (
           <div>
-            <div style={{fontSize:22,fontWeight:800,color:"#0f172a",marginBottom:20}}>🛒 Pedidos Pendentes</div>
-            {loadingPedidos ? <Spinner/> : pedidos.length===0 ? (
-              <div style={{background:"#fff",borderRadius:16,padding:48,textAlign:"center",color:"#94a3b8"}}>
-                <div style={{fontSize:48,marginBottom:8}}>✅</div>
-                <div style={{fontWeight:600,fontSize:16}}>Nenhum pedido pendente</div>
-              </div>
-            ) : (
-              <div style={{display:"flex",flexDirection:"column",gap:12}}>
-                {pedidos.map(pedido=>(
-                  <div key={pedido.id} style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 1px 4px rgba(0,0,0,0.07)",borderLeft:"4px solid #f59e0b"}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
-                      <div>
-                        <div style={{fontWeight:700,fontSize:16}}>{pedido.cliente}</div>
-                        <div style={{fontSize:13,color:"#94a3b8"}}>{new Date(pedido.created_at).toLocaleDateString("pt-BR")} às {new Date(pedido.created_at).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</div>
-                      </div>
-                      <div style={{textAlign:"right"}}>
-                        <div style={{fontWeight:800,fontSize:20}}>R$ {Number(pedido.total).toFixed(2)}</div>
-                        <span style={{background:"#fef3c7",color:"#92400e",borderRadius:6,padding:"2px 10px",fontSize:12,fontWeight:700}}>{pedido.pagamento}</span>
-                      </div>
-                    </div>
-                    <table style={{width:"100%",borderCollapse:"collapse",marginBottom:14}}>
-                      <thead>
-                        <tr style={{borderBottom:"2px solid #f1f5f9"}}>
-                          {["Produto","Sabor","Qtd","Valor"].map(h=><th key={h} style={{textAlign:"left",padding:"6px 8px",fontSize:12,color:"#94a3b8",fontWeight:600}}>{h}</th>)}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pedido.items.map((item,i)=>(
-                          <tr key={i} style={{borderBottom:"1px solid #f8fafc"}}>
-                            <td style={{padding:"8px",fontSize:14,fontWeight:600}}>{item.product_name}</td>
-                            <td style={{padding:"8px",fontSize:13,color:"#6366f1",fontWeight:600}}>{item.flavor}</td>
-                            <td style={{padding:"8px",fontSize:14}}>{item.qty}</td>
-                            <td style={{padding:"8px",fontSize:14,fontWeight:700}}>R$ {(item.price*item.qty).toFixed(2)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    <div style={{display:"flex",gap:10}}>
-                      <button onClick={()=>rejeitarPedido(pedido)} style={{flex:1,padding:"10px 0",borderRadius:10,border:"none",background:"#fee2e2",color:"#dc2626",fontWeight:700,fontSize:14,cursor:"pointer"}}>✕ Rejeitar pedido</button>
-                      <button onClick={()=>confirmarPedido(pedido)} style={{flex:2,padding:"10px 0",borderRadius:10,border:"none",background:"linear-gradient(135deg,#22c55e,#16a34a)",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer"}}>✓ Confirmar e baixar estoque</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div style={{fontSize:22,fontWeight:800,color:"#0f172a",marginBottom:20}}>🛒 Pedidos</div>
+            <PedidosView pedidos={pedidos} rejeitados={rejeitados} loading={loadingPedidos} onConfirm={confirmarPedido} onReject={rejeitarPedido} desktop/>
           </div>
         )}
 
@@ -892,27 +849,108 @@ function AdminDesktop({ data, actions }) {
 }
 
 // ── SHARED VIEWS ─────────────────────────────────────────────
-function PedidosView({ pedidos, loading, onConfirm, onReject }) {
-  if (loading) return <Spinner/>;
-  if (pedidos.length===0) return <div style={{textAlign:"center",color:"#94a3b8",padding:40}}><div style={{fontSize:40,marginBottom:8}}>✅</div><div style={{fontWeight:600}}>Nenhum pedido pendente</div></div>;
-  return pedidos.map(pedido=>(
-    <div key={pedido.id} style={{background:"#fff",borderRadius:14,padding:14,marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,0.07)",borderLeft:"4px solid #f59e0b"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-        <div><div style={{fontWeight:700,fontSize:15}}>{pedido.cliente}</div><div style={{fontSize:12,color:"#94a3b8"}}>{new Date(pedido.created_at).toLocaleDateString("pt-BR")} {new Date(pedido.created_at).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</div></div>
-        <div style={{textAlign:"right"}}><div style={{fontWeight:800,fontSize:17}}>R$ {Number(pedido.total).toFixed(2)}</div><span style={{background:"#fef3c7",color:"#92400e",borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700}}>{pedido.pagamento}</span></div>
-      </div>
-      {pedido.items.map((item,i)=>(
-        <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderTop:"1px solid #f1f5f9"}}>
-          <div><div style={{fontWeight:600,fontSize:13}}>{item.product_name}</div><div style={{color:"#6366f1",fontSize:12}}>{item.flavor} × {item.qty}</div></div>
-          <div style={{fontWeight:600,fontSize:13}}>R$ {(item.price*item.qty).toFixed(2)}</div>
+function PedidosView({ pedidos, rejeitados, loading, onConfirm, onReject, desktop }) {
+  const [subTab, setSubTab] = useState("pendentes");
+
+  const SubTabs = () => (
+    <div style={{display:"flex",gap:8,marginBottom:16}}>
+      {[["pendentes",`⏳ Pendentes (${pedidos.length})`],["rejeitados",`✕ Rejeitados (${(rejeitados||[]).length})`]].map(([id,label])=>(
+        <button key={id} onClick={()=>setSubTab(id)} style={{padding:"7px 16px",borderRadius:20,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,background:subTab===id?(id==="rejeitados"?"#fee2e2":"#0f172a"):"#e2e8f0",color:subTab===id?(id==="rejeitados"?"#dc2626":"#fff"):"#475569"}}>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (loading) return <><SubTabs/><Spinner/></>;
+
+  if (subTab==="rejeitados") {
+    const lista = rejeitados||[];
+    return (
+      <>
+        <SubTabs/>
+        {lista.length===0 ? (
+          <div style={{textAlign:"center",color:"#94a3b8",padding:40}}><div style={{fontSize:40,marginBottom:8}}>✅</div><div style={{fontWeight:600}}>Nenhum pedido rejeitado</div></div>
+        ) : lista.map(pedido=>(
+          <div key={pedido.id} style={{background:"#fff",borderRadius:14,padding:desktop?20:14,marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,0.07)",borderLeft:"4px solid #ef4444",opacity:0.85}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <div>
+                <div style={{fontWeight:700,fontSize:desktop?16:15}}>{pedido.cliente}</div>
+                <div style={{fontSize:12,color:"#94a3b8"}}>{new Date(pedido.created_at).toLocaleDateString("pt-BR")} {new Date(pedido.created_at).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontWeight:800,fontSize:desktop?18:16,color:"#64748b"}}>R$ {Number(pedido.total).toFixed(2)}</div>
+                <span style={{background:"#fee2e2",color:"#dc2626",borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700}}>Rejeitado</span>
+              </div>
+            </div>
+            {desktop ? (
+              <table style={{width:"100%",borderCollapse:"collapse"}}>
+                <thead><tr style={{borderBottom:"2px solid #f1f5f9"}}>{["Produto","Sabor","Qtd","Valor"].map(h=><th key={h} style={{textAlign:"left",padding:"6px 8px",fontSize:12,color:"#94a3b8",fontWeight:600}}>{h}</th>)}</tr></thead>
+                <tbody>{pedido.items.map((item,i)=>(
+                  <tr key={i} style={{borderBottom:"1px solid #f8fafc"}}>
+                    <td style={{padding:"8px",fontSize:14,fontWeight:600}}>{item.product_name}</td>
+                    <td style={{padding:"8px",fontSize:13,color:"#6366f1",fontWeight:600}}>{item.flavor}</td>
+                    <td style={{padding:"8px",fontSize:14}}>{item.qty}</td>
+                    <td style={{padding:"8px",fontSize:14,fontWeight:700}}>R$ {(item.price*item.qty).toFixed(2)}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            ) : pedido.items.map((item,i)=>(
+              <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderTop:"1px solid #f1f5f9"}}>
+                <div><div style={{fontWeight:600,fontSize:13}}>{item.product_name}</div><div style={{color:"#6366f1",fontSize:12}}>{item.flavor} × {item.qty}</div></div>
+                <div style={{fontWeight:600,fontSize:13}}>R$ {(item.price*item.qty).toFixed(2)}</div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </>
+    );
+  }
+
+  // Pendentes
+  return (
+    <>
+      <SubTabs/>
+      {pedidos.length===0 ? (
+        <div style={{textAlign:"center",color:"#94a3b8",padding:40}}><div style={{fontSize:40,marginBottom:8}}>✅</div><div style={{fontWeight:600}}>Nenhum pedido pendente</div></div>
+      ) : pedidos.map(pedido=>(
+        <div key={pedido.id} style={{background:"#fff",borderRadius:desktop?16:14,padding:desktop?20:14,marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,0.07)",borderLeft:"4px solid #f59e0b"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <div>
+              <div style={{fontWeight:700,fontSize:desktop?16:15}}>{pedido.cliente}</div>
+              <div style={{fontSize:12,color:"#94a3b8"}}>{new Date(pedido.created_at).toLocaleDateString("pt-BR")} {new Date(pedido.created_at).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</div>
+            </div>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontWeight:800,fontSize:desktop?20:17}}>R$ {Number(pedido.total).toFixed(2)}</div>
+              <span style={{background:"#fef3c7",color:"#92400e",borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700}}>{pedido.pagamento}</span>
+            </div>
+          </div>
+          {desktop ? (
+            <table style={{width:"100%",borderCollapse:"collapse",marginBottom:14}}>
+              <thead><tr style={{borderBottom:"2px solid #f1f5f9"}}>{["Produto","Sabor","Qtd","Valor"].map(h=><th key={h} style={{textAlign:"left",padding:"6px 8px",fontSize:12,color:"#94a3b8",fontWeight:600}}>{h}</th>)}</tr></thead>
+              <tbody>{pedido.items.map((item,i)=>(
+                <tr key={i} style={{borderBottom:"1px solid #f8fafc"}}>
+                  <td style={{padding:"8px",fontSize:14,fontWeight:600}}>{item.product_name}</td>
+                  <td style={{padding:"8px",fontSize:13,color:"#6366f1",fontWeight:600}}>{item.flavor}</td>
+                  <td style={{padding:"8px",fontSize:14}}>{item.qty}</td>
+                  <td style={{padding:"8px",fontSize:14,fontWeight:700}}>R$ {(item.price*item.qty).toFixed(2)}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          ) : pedido.items.map((item,i)=>(
+            <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderTop:"1px solid #f1f5f9"}}>
+              <div><div style={{fontWeight:600,fontSize:13}}>{item.product_name}</div><div style={{color:"#6366f1",fontSize:12}}>{item.flavor} × {item.qty}</div></div>
+              <div style={{fontWeight:600,fontSize:13}}>R$ {(item.price*item.qty).toFixed(2)}</div>
+            </div>
+          ))}
+          <div style={{display:"flex",gap:8,marginTop:12}}>
+            <button onClick={()=>onReject(pedido)} style={{flex:1,padding:"10px 0",borderRadius:10,border:"none",background:"#fee2e2",color:"#dc2626",fontWeight:700,fontSize:14,cursor:"pointer"}}>✕ Rejeitar</button>
+            <button onClick={()=>onConfirm(pedido)} style={{flex:2,padding:"10px 0",borderRadius:10,border:"none",background:"linear-gradient(135deg,#22c55e,#16a34a)",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer"}}>✓ Confirmar</button>
+          </div>
         </div>
       ))}
-      <div style={{display:"flex",gap:8,marginTop:12}}>
-        <button onClick={()=>onReject(pedido)} style={{flex:1,padding:"10px 0",borderRadius:10,border:"none",background:"#fee2e2",color:"#dc2626",fontWeight:700,fontSize:14,cursor:"pointer"}}>✕ Rejeitar</button>
-        <button onClick={()=>onConfirm(pedido)} style={{flex:2,padding:"10px 0",borderRadius:10,border:"none",background:"linear-gradient(135deg,#22c55e,#16a34a)",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer"}}>✓ Confirmar</button>
-      </div>
-    </div>
-  ));
+    </>
+  );
 }
 
 function VendasView({ sales, loading, monthRevenue, monthlySales }) {
@@ -1182,6 +1220,7 @@ function AdminPanel({ onLogout }) {
   const isDesktop = useIsDesktop();
   const [products, setProducts] = useState([]);
   const [pedidos, setPedidos] = useState([]);
+  const [rejeitados, setRejeitados] = useState([]);
   const [sales, setSales] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
   const [config, setConfig] = useState({ alerta_vencimento_dias:60 });
@@ -1207,6 +1246,9 @@ function AdminPanel({ onLogout }) {
     setLoadingS(true);
     try { const v=await db.select("vendas","select=*,venda_itens(*)&status=eq.confirmado"); setSales(v.map(s=>({...s,items:s.venda_itens||[]}))); } catch {} finally { setLoadingS(false); }
   },[]);
+  const loadRejeitados = useCallback(async()=>{
+    try { const v=await db.select("vendas","select=*,venda_itens(*)&status=eq.rejeitado"); setRejeitados(v.map(s=>({...s,items:s.venda_itens||[]}))); } catch {}
+  },[]);
   const loadUsuarios = useCallback(async()=>{
     try { setUsuarios(await db.select("usuarios","select=id,nome,telefone,email")); } catch {}
   },[]);
@@ -1214,7 +1256,7 @@ function AdminPanel({ onLogout }) {
     try { const c=await db.select("configuracoes","id=eq.default"); if(c.length) setConfig(c[0]); } catch {}
   },[]);
 
-  useEffect(()=>{ loadProducts(); loadPedidos(); loadSales(); loadUsuarios(); loadConfig(); },[loadProducts,loadPedidos,loadSales,loadUsuarios,loadConfig]);
+  useEffect(()=>{ loadProducts(); loadPedidos(); loadSales(); loadRejeitados(); loadUsuarios(); loadConfig(); },[loadProducts,loadPedidos,loadSales,loadRejeitados,loadUsuarios,loadConfig]);
 
   async function confirmarPedido(pedido) {
     try {
@@ -1227,8 +1269,7 @@ function AdminPanel({ onLogout }) {
     } catch { showToast("Erro ao confirmar","error"); }
   }
   async function rejeitarPedido(pedido) {
-    if (!window.confirm("Rejeitar este pedido?")) return;
-    try { await db.update("vendas",pedido.id,{status:"rejeitado"}); showToast("Pedido rejeitado.","info"); await loadPedidos(); } catch { showToast("Erro","error"); }
+    try { await db.update("vendas",pedido.id,{status:"rejeitado"}); showToast("Pedido rejeitado.","info"); await loadPedidos(); await loadRejeitados(); } catch { showToast("Erro ao rejeitar","error"); }
   }
   async function handleSaveProduct(data) {
     try {
@@ -1239,7 +1280,6 @@ function AdminPanel({ onLogout }) {
     setShowAddProduct(false); setEditProduct(null);
   }
   async function handleDelete(id) {
-    if (!window.confirm("Remover?")) return;
     try { await db.delete("produtos",id); await loadProducts(); showToast("Removido.","info"); } catch { showToast("Erro","error"); }
   }
   async function saveConfig() {
@@ -1254,7 +1294,7 @@ function AdminPanel({ onLogout }) {
   const monthlySales = sales.filter(s=>s.created_at?.startsWith(monthStr));
   const monthRevenue = monthlySales.reduce((s,v)=>s+Number(v.total),0);
 
-  const sharedData = { products,pedidos,sales,usuarios,config,loadingP,loadingPedidos,loadingS,alertDays,alerts,totalValue,monthRevenue,monthlySales };
+  const sharedData = { products,pedidos,rejeitados,sales,usuarios,config,loadingP,loadingPedidos,loadingS,alertDays,alerts,totalValue,monthRevenue,monthlySales };
   const sharedActions = { confirmarPedido,rejeitarPedido,handleSaveProduct,handleDelete,saveConfig,setConfig,showAddProduct,setShowAddProduct,editProduct,setEditProduct,toast,onLogout };
 
   return (
