@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
 const SUPABASE_URL   = "https://juqsrwtfwujnievhftgi.supabase.co";
 const SUPABASE_ANON  = "sb_publishable_8sFebEhMSp0askniYLBRSg_PtyWGvXB";
@@ -79,12 +79,25 @@ function Spinner() {
 
 // ── FIELD ────────────────────────────────────────────────────
 function Field({ value, onChange, onEnter, label, type="text", placeholder, error }) {
+  const ref = React.useRef(null);
+  // Keep cursor position when value changes externally
+  React.useLayoutEffect(() => {
+    if (ref.current && document.activeElement !== ref.current) {
+      ref.current.value = value;
+    }
+  }, [value]);
   return (
     <div>
       <label style={lblS}>{label}</label>
-      <input type={type} placeholder={placeholder} value={value} onChange={onChange}
+      <input
+        ref={ref}
+        type={type}
+        placeholder={placeholder}
+        defaultValue={value}
+        onChange={onChange}
         onKeyDown={e=>{ if(e.key==="Enter"&&onEnter) onEnter(); }}
-        style={inpS(error)} autoFocus={false}/>
+        style={inpS(error)}
+      />
       {error && <div style={{color:"#ef4444",fontSize:12,marginTop:3,fontWeight:600}}>{error}</div>}
     </div>
   );
@@ -411,7 +424,7 @@ function ProductForm({ initial, onSave, onClose }) {
 
 // ── ADMIN MOBILE ─────────────────────────────────────────────
 function AdminMobile({ data, actions }) {
-  const { products, pedidos, sales, config, loadingP, loadingPedidos, loadingS, alertDays, alerts, totalValue, monthRevenue, monthlySales } = data;
+  const { products, pedidos, sales, usuarios, config, loadingP, loadingPedidos, loadingS, alertDays, alerts, totalValue, monthRevenue, monthlySales } = data;
   const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, saveConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast } = actions;
   const [tab, setTab] = useState("pedidos");
   const [search, setSearch] = useState("");
@@ -448,7 +461,7 @@ function AdminMobile({ data, actions }) {
           ))}
         </div>
         <div style={{display:"flex",marginTop:16,overflowX:"auto"}}>
-          {[["pedidos",`🛒${pedidos.length>0?` (${pedidos.length})`:""}`],["estoque","📦"],["vendas","💰"],["alertas","⚠"],["config","⚙️"]].map(([id,label])=>(
+          {[["pedidos",`🛒${pedidos.length>0?` (${pedidos.length})`:""}`],["estoque","📦"],["vendas","💰"],["clientes","👥"],["alertas","⚠"],["config","⚙️"]].map(([id,label])=>(
             <button key={id} onClick={()=>setTab(id)} style={{flex:1,padding:"10px 4px",border:"none",cursor:"pointer",fontSize:11,fontWeight:600,background:"transparent",color:tab===id?"#fff":"#64748b",borderBottom:tab===id?"2px solid #3b82f6":"2px solid transparent",whiteSpace:"nowrap"}}>{label}</button>
           ))}
         </div>
@@ -496,6 +509,7 @@ function AdminMobile({ data, actions }) {
           </>
         )}
         {tab==="vendas" && <VendasView sales={sales} loading={loadingS} monthRevenue={monthRevenue} monthlySales={monthlySales}/>}
+        {tab==="clientes" && <ClientesView sales={sales} loadingS={loadingS} usuarios={usuarios}/>}
         {tab==="alertas" && <AlertasView alerts={alerts} alertDays={alertDays} onEdit={p=>{setEditProduct({...p,minQty:p.min_qty,costPrice:p.cost_price});setShowAddProduct(true);}}/>}
         {tab==="config" && <ConfigView config={config} setConfig={setConfig} onSave={saveConfig}/>}
       </div>
@@ -506,7 +520,7 @@ function AdminMobile({ data, actions }) {
 
 // ── ADMIN DESKTOP ─────────────────────────────────────────────
 function AdminDesktop({ data, actions }) {
-  const { products, pedidos, sales, config, loadingP, loadingPedidos, loadingS, alertDays, alerts, totalValue, monthRevenue, monthlySales } = data;
+  const { products, pedidos, sales, usuarios, config, loadingP, loadingPedidos, loadingS, alertDays, alerts, totalValue, monthRevenue, monthlySales } = data;
   const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, saveConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast } = actions;
   const [tab, setTab] = useState("overview");
   const [search, setSearch] = useState("");
@@ -520,12 +534,13 @@ function AdminDesktop({ data, actions }) {
   });
 
   const navItems = [
-    { id:"overview", icon:"🏠", label:"Visão Geral" },
-    { id:"pedidos",  icon:"🛒", label:"Pedidos", badge: pedidos.length },
-    { id:"estoque",  icon:"📦", label:"Estoque" },
-    { id:"vendas",   icon:"💰", label:"Vendas" },
-    { id:"alertas",  icon:"⚠️",  label:"Alertas", badge: alerts.length, badgeColor:"#ef4444" },
-    { id:"config",   icon:"⚙️",  label:"Config" },
+    { id:"overview",  icon:"🏠", label:"Visão Geral" },
+    { id:"pedidos",   icon:"🛒", label:"Pedidos", badge: pedidos.length },
+    { id:"estoque",   icon:"📦", label:"Estoque" },
+    { id:"vendas",    icon:"💰", label:"Vendas" },
+    { id:"clientes",  icon:"👥", label:"Clientes" },
+    { id:"alertas",   icon:"⚠️",  label:"Alertas", badge: alerts.length, badgeColor:"#ef4444" },
+    { id:"config",    icon:"⚙️",  label:"Config" },
   ];
 
   return (
@@ -847,6 +862,11 @@ function AdminDesktop({ data, actions }) {
           </div>
         )}
 
+        {/* CLIENTES */}
+        {tab==="clientes" && (
+          <ClientesView sales={sales} loadingS={loadingS} usuarios={usuarios}/>
+        )}
+
         {/* CONFIG */}
         {tab==="config" && (
           <div>
@@ -957,12 +977,213 @@ function ConfigView({ config, setConfig, onSave }) {
   );
 }
 
+// ── CLIENTES VIEW ────────────────────────────────────────────
+const INATIVO_DIAS = 30;
+
+function ClienteCard({ c, isSelected, onClick }) {
+  const diasSemComprar = Math.floor((new Date() - new Date(c.ultimaCompra)) / 86400000);
+  const inativo = diasSemComprar >= INATIVO_DIAS;
+  return (
+    <tr onClick={onClick} style={{borderBottom:"1px solid #f1f5f9",cursor:"pointer",background:isSelected?"#eff6ff":"#fff",transition:"background .1s"}}>
+      <td style={{padding:"12px 14px"}}>
+        <div style={{fontWeight:700,fontSize:14}}>{c.nome}</div>
+        {inativo && <div style={{fontSize:11,color:"#f59e0b",fontWeight:600,marginTop:2}}>⚠ {diasSemComprar}d sem comprar</div>}
+      </td>
+      <td style={{padding:"12px 14px"}}>
+        <span style={{background:"#dbeafe",color:"#1d4ed8",borderRadius:6,padding:"2px 8px",fontSize:13,fontWeight:700}}>{c.pedidos.length}</span>
+      </td>
+      <td style={{padding:"12px 14px",fontWeight:800,fontSize:14,color:"#16a34a"}}>R$ {c.total.toFixed(2)}</td>
+      <td style={{padding:"12px 14px",fontSize:13,color:inativo?"#f59e0b":"#64748b",fontWeight:inativo?700:400}}>
+        {new Date(c.ultimaCompra).toLocaleDateString("pt-BR")}
+      </td>
+    </tr>
+  );
+}
+
+function ClienteSidePanel({ selected, onClose }) {
+  const diasSemComprar = Math.floor((new Date() - new Date(selected.ultimaCompra)) / 86400000);
+  const inativo = diasSemComprar >= INATIVO_DIAS;
+
+  function abrirWhatsApp() {
+    const tel = selected.telefone ? selected.telefone.replace(/\D/g,"") : "";
+    if (!tel) { alert("Telefone não cadastrado para este cliente."); return; }
+    const msg = `Olá ${selected.nome.split(" ")[0]}! 💪 Tudo bem? Passando para ver se precisa repor algum suplemento. Temos novidades no estoque!`;
+    window.open(`https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`,"_blank");
+  }
+
+  return (
+    <div style={{width:320,background:"#fff",borderRadius:16,padding:20,boxShadow:"0 1px 4px rgba(0,0,0,0.07)",alignSelf:"flex-start",position:"sticky",top:20}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <div style={{fontWeight:800,fontSize:16}}>Perfil do cliente</div>
+        <button onClick={onClose} style={{background:"#f1f5f9",border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:14}}>✕</button>
+      </div>
+
+      {/* Avatar + nome */}
+      <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16,padding:"14px 16px",background:"#f8fafc",borderRadius:12}}>
+        <div style={{width:48,height:48,borderRadius:"50%",background:"linear-gradient(135deg,#6366f1,#3b82f6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,color:"#fff",fontWeight:800,flexShrink:0}}>
+          {selected.nome.charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <div style={{fontWeight:800,fontSize:16,color:"#0f172a"}}>{selected.nome}</div>
+          {selected.telefone && <div style={{fontSize:12,color:"#64748b",marginTop:2}}>📱 {selected.telefone}</div>}
+          {selected.email && <div style={{fontSize:12,color:"#64748b"}}>✉️ {selected.email}</div>}
+        </div>
+      </div>
+
+      {/* Alerta de inatividade */}
+      {inativo && (
+        <div style={{background:"#fef3c7",borderRadius:10,padding:"10px 14px",marginBottom:16,display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:18}}>⏰</span>
+          <div>
+            <div style={{fontWeight:700,fontSize:13,color:"#92400e"}}>{diasSemComprar} dias sem comprar</div>
+            <div style={{fontSize:12,color:"#b45309"}}>Hora de entrar em contato!</div>
+          </div>
+        </div>
+      )}
+
+      {/* Botão WhatsApp */}
+      {selected.telefone && (
+        <button onClick={abrirWhatsApp} style={{width:"100%",padding:"11px 0",borderRadius:10,border:"none",background:"#25d366",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:16,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+          <span style={{fontSize:16}}>📲</span> Entrar em contato no WhatsApp
+        </button>
+      )}
+
+      {/* Stats */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
+        {[
+          {label:"Total gasto",value:`R$ ${selected.total.toFixed(2)}`,color:"#16a34a"},
+          {label:"Ticket médio",value:`R$ ${(selected.total/selected.pedidos.length).toFixed(2)}`,color:"#3b82f6"},
+          {label:"Pedidos",value:selected.pedidos.length,color:"#6366f1"},
+          {label:"Última compra",value:new Date(selected.ultimaCompra).toLocaleDateString("pt-BR"),color:inativo?"#f59e0b":"#0f172a"},
+        ].map(s=>(
+          <div key={s.label} style={{background:"#f8fafc",borderRadius:10,padding:"10px 12px",textAlign:"center"}}>
+            <div style={{fontSize:15,fontWeight:800,color:s.color}}>{s.value}</div>
+            <div style={{fontSize:11,color:"#94a3b8",marginTop:2}}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Histórico */}
+      <div style={{fontWeight:700,fontSize:14,color:"#0f172a",marginBottom:10}}>Histórico de pedidos</div>
+      <div style={{maxHeight:280,overflowY:"auto",display:"flex",flexDirection:"column",gap:8}}>
+        {selected.pedidos.map(p=>(
+          <div key={p.id} style={{background:"#f8fafc",borderRadius:10,padding:12}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <div style={{fontSize:12,color:"#94a3b8"}}>{new Date(p.created_at).toLocaleDateString("pt-BR")}</div>
+              <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                <span style={{background:"#f1f5f9",borderRadius:6,padding:"1px 7px",fontSize:11,fontWeight:700,color:"#475569"}}>{p.pagamento}</span>
+                <span style={{fontWeight:800,fontSize:13,color:"#16a34a"}}>R$ {Number(p.total).toFixed(2)}</span>
+              </div>
+            </div>
+            {(p.items||[]).map((item,i)=>(
+              <div key={i} style={{fontSize:12,color:"#475569",paddingTop:i>0?4:0,borderTop:i>0?"1px solid #e2e8f0":"none"}}>
+                {item.product_name} <span style={{color:"#6366f1"}}>({item.flavor})</span> × {item.qty}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ClientesView({ sales, loadingS, usuarios }) {
+  const [search, setSearch] = useState("");
+  const [subTab, setSubTab] = useState("todos");
+  const [selected, setSelected] = useState(null);
+
+  // Build clients map
+  const clientsMap = {};
+  (sales || []).forEach(s => {
+    if (!s.cliente) return;
+    if (!clientsMap[s.cliente]) {
+      // Try to find user data
+      const u = (usuarios||[]).find(u=>u.nome===s.cliente);
+      clientsMap[s.cliente] = {
+        nome: s.cliente,
+        telefone: u?.telefone||"",
+        email: u?.email||"",
+        pedidos: [],
+        total: 0,
+        ultimaCompra: s.created_at,
+      };
+    }
+    clientsMap[s.cliente].pedidos.push(s);
+    clientsMap[s.cliente].total += Number(s.total);
+    if (s.created_at > clientsMap[s.cliente].ultimaCompra) clientsMap[s.cliente].ultimaCompra = s.created_at;
+  });
+
+  const allClients = Object.values(clientsMap).sort((a,b)=>b.total-a.total);
+  const inativos = allClients.filter(c=>Math.floor((new Date()-new Date(c.ultimaCompra))/86400000)>=INATIVO_DIAS);
+  const listBase = subTab==="inativos" ? inativos : allClients;
+  const filtered = listBase.filter(c=>c.nome.toLowerCase().includes(search.toLowerCase()));
+
+  if (loadingS) return <Spinner/>;
+
+  return (
+    <div style={{display:"flex",gap:20}}>
+      <div style={{flex:1}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+          <div style={{fontSize:22,fontWeight:800,color:"#0f172a"}}>👥 Clientes</div>
+          {inativos.length>0 && (
+            <div style={{background:"#fef3c7",borderRadius:10,padding:"6px 14px",fontSize:13,fontWeight:700,color:"#92400e"}}>
+              ⏰ {inativos.length} cliente{inativos.length!==1?"s":""} sem comprar há +{INATIVO_DIAS}d
+            </div>
+          )}
+        </div>
+
+        {/* Sub-tabs */}
+        <div style={{display:"flex",gap:8,marginBottom:14}}>
+          {[["todos",`Todos (${allClients.length})`],["inativos",`⏰ Sem comprar há +${INATIVO_DIAS}d (${inativos.length})`]].map(([id,label])=>(
+            <button key={id} onClick={()=>{setSubTab(id);setSelected(null);}} style={{padding:"7px 16px",borderRadius:20,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,background:subTab===id?"#0f172a":"#e2e8f0",color:subTab===id?"#fff":"#475569"}}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <input placeholder="🔍 Buscar cliente..." value={search} onChange={e=>setSearch(e.target.value)}
+          style={{width:"100%",padding:"10px 14px",borderRadius:10,border:"1px solid #e2e8f0",fontSize:14,outline:"none",background:"#fff",boxSizing:"border-box",marginBottom:14}}/>
+
+        {allClients.length===0 ? (
+          <div style={{background:"#fff",borderRadius:16,padding:48,textAlign:"center",color:"#94a3b8"}}>
+            <div style={{fontSize:40,marginBottom:8}}>👥</div>
+            <div style={{fontWeight:600}}>Nenhum cliente ainda</div>
+            <div style={{fontSize:13,marginTop:4}}>Aparecem após pedidos confirmados</div>
+          </div>
+        ) : filtered.length===0 ? (
+          <div style={{background:"#fff",borderRadius:16,padding:32,textAlign:"center",color:"#94a3b8"}}>Nenhum cliente encontrado</div>
+        ) : (
+          <div style={{background:"#fff",borderRadius:16,boxShadow:"0 1px 4px rgba(0,0,0,0.07)",overflow:"hidden"}}>
+            <table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead>
+                <tr style={{background:"#f8fafc",borderBottom:"2px solid #e2e8f0"}}>
+                  {["Cliente","Pedidos","Total gasto","Última compra"].map(h=>(
+                    <th key={h} style={{textAlign:"left",padding:"12px 14px",fontSize:12,color:"#64748b",fontWeight:700}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(c=>(
+                  <ClienteCard key={c.nome} c={c} isSelected={selected?.nome===c.nome} onClick={()=>setSelected(selected?.nome===c.nome?null:c)}/>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {selected && <ClienteSidePanel selected={selected} onClose={()=>setSelected(null)}/>}
+    </div>
+  );
+}
+
 // ── ADMIN PANEL (orquestrador) ────────────────────────────────
 function AdminPanel({ onLogout }) {
   const isDesktop = useIsDesktop();
   const [products, setProducts] = useState([]);
   const [pedidos, setPedidos] = useState([]);
   const [sales, setSales] = useState([]);
+  const [usuarios, setUsuarios] = useState([]);
   const [config, setConfig] = useState({ alerta_vencimento_dias:60 });
   const [loadingP, setLoadingP] = useState(true);
   const [loadingPedidos, setLoadingPedidos] = useState(true);
@@ -986,11 +1207,14 @@ function AdminPanel({ onLogout }) {
     setLoadingS(true);
     try { const v=await db.select("vendas","select=*,venda_itens(*)&status=eq.confirmado"); setSales(v.map(s=>({...s,items:s.venda_itens||[]}))); } catch {} finally { setLoadingS(false); }
   },[]);
+  const loadUsuarios = useCallback(async()=>{
+    try { setUsuarios(await db.select("usuarios","select=id,nome,telefone,email")); } catch {}
+  },[]);
   const loadConfig = useCallback(async()=>{
     try { const c=await db.select("configuracoes","id=eq.default"); if(c.length) setConfig(c[0]); } catch {}
   },[]);
 
-  useEffect(()=>{ loadProducts(); loadPedidos(); loadSales(); loadConfig(); },[loadProducts,loadPedidos,loadSales,loadConfig]);
+  useEffect(()=>{ loadProducts(); loadPedidos(); loadSales(); loadUsuarios(); loadConfig(); },[loadProducts,loadPedidos,loadSales,loadUsuarios,loadConfig]);
 
   async function confirmarPedido(pedido) {
     try {
@@ -1030,7 +1254,7 @@ function AdminPanel({ onLogout }) {
   const monthlySales = sales.filter(s=>s.created_at?.startsWith(monthStr));
   const monthRevenue = monthlySales.reduce((s,v)=>s+Number(v.total),0);
 
-  const sharedData = { products,pedidos,sales,config,loadingP,loadingPedidos,loadingS,alertDays,alerts,totalValue,monthRevenue,monthlySales };
+  const sharedData = { products,pedidos,sales,usuarios,config,loadingP,loadingPedidos,loadingS,alertDays,alerts,totalValue,monthRevenue,monthlySales };
   const sharedActions = { confirmarPedido,rejeitarPedido,handleSaveProduct,handleDelete,saveConfig,setConfig,showAddProduct,setShowAddProduct,editProduct,setEditProduct,toast,onLogout };
 
   return (
