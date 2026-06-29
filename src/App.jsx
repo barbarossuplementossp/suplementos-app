@@ -193,7 +193,7 @@ function AuthModal({ onClose, onLogin }) {
 }
 
 // ── VITRINE ──────────────────────────────────────────────────
-function Vitrine({ products, loading, user, onLogout, onShowAuth }) {
+function Vitrine({ products, loading, user, onLogout, onShowAuth, config }) {
   const [cart, setCart] = useState([]);
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("Todos");
@@ -269,11 +269,14 @@ function Vitrine({ products, loading, user, onLogout, onShowAuth }) {
 
   return (
     <div style={{fontFamily:"'Inter',sans-serif",background:"#f1f5f9",minHeight:"100vh",maxWidth:600,margin:"0 auto",paddingBottom:90}}>
-      <div style={{background:"linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%)",padding:"20px 20px 16px",color:"#fff"}}>
+      <div style={{background:`linear-gradient(135deg,${config?.header_color1||"#0f172a"} 0%,${config?.header_color2||"#1e3a5f"} 100%)`,padding:"20px 20px 16px",color:"#fff"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div>
-            <div style={{fontSize:11,fontWeight:600,letterSpacing:2,color:"#94a3b8",textTransform:"uppercase"}}>Loja de</div>
-            <div style={{fontSize:22,fontWeight:800}}>Suplementos 💪</div>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            {config?.logo_url ? <img src={config.logo_url} alt="logo" style={{width:44,height:44,borderRadius:10,objectFit:"cover"}}/> : <span style={{fontSize:28}}>💪</span>}
+            <div>
+              <div style={{fontSize:11,fontWeight:600,letterSpacing:2,color:"rgba(255,255,255,0.5)",textTransform:"uppercase"}}>Loja de</div>
+              <div style={{fontSize:20,fontWeight:800}}>{config?.nome_loja||"Suplementos"}</div>
+            </div>
           </div>
           {user ? (
             <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
@@ -292,7 +295,7 @@ function Vitrine({ products, loading, user, onLogout, onShowAuth }) {
           {["Todos",...CATEGORIES].map(c=>(<button key={c} onClick={()=>setFilterCat(c)} style={{padding:"5px 11px",borderRadius:20,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,background:filterCat===c?"#0f172a":"#e2e8f0",color:filterCat===c?"#fff":"#475569"}}>{c}</button>))}
         </div>
         {loading ? <Spinner /> : (
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:12}}>
             {filtered.map(p=>{
               const inCart=cartQty(p.id),available=p.qty-inCart,sold_out=p.qty===0,maxed=inCart>=p.qty;
               return (
@@ -440,9 +443,12 @@ function AdminMobile({ data, actions }) {
     <div style={{fontFamily:"'Inter',sans-serif",background:"#f1f5f9",minHeight:"100vh",maxWidth:600,margin:"0 auto",paddingBottom:90}}>
       <div style={{background:"linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%)",padding:"20px 20px 0",color:"#fff"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-          <div>
-            <div style={{fontSize:11,fontWeight:600,letterSpacing:2,color:"#94a3b8",textTransform:"uppercase"}}>Controle de</div>
-            <div style={{fontSize:22,fontWeight:800}}>Suplementos 💪</div>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            {config?.logo_url ? <img src={config.logo_url} alt="logo" style={{width:36,height:36,borderRadius:8,objectFit:"cover"}}/> : <span style={{fontSize:22}}>💪</span>}
+            <div>
+              <div style={{fontSize:10,fontWeight:600,letterSpacing:2,color:"#94a3b8",textTransform:"uppercase"}}>Admin</div>
+              <div style={{fontSize:18,fontWeight:800}}>{config?.nome_loja||"Suplementos"}</div>
+            </div>
           </div>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
             {alerts.length>0&&<div style={{background:"#ef4444",borderRadius:20,padding:"4px 12px",fontSize:13,fontWeight:700,cursor:"pointer"}} onClick={()=>setTab("alertas")}>⚠ {alerts.length}</div>}
@@ -511,7 +517,7 @@ function AdminMobile({ data, actions }) {
         {tab==="vendas" && <VendasView sales={sales} loading={loadingS} monthRevenue={monthRevenue} monthlySales={monthlySales} products={products}/>}
         {tab==="clientes" && <ClientesView sales={sales} loadingS={loadingS} usuarios={usuarios}/>}
         {tab==="alertas" && <AlertasView alerts={alerts} alertDays={alertDays} onEdit={p=>{setEditProduct({...p,minQty:p.min_qty,costPrice:p.cost_price});setShowAddProduct(true);}}/>}
-        {tab==="config" && <ConfigView config={config} setConfig={setConfig} onSave={saveConfig}/>}
+        {tab==="config" && <ConfigView config={config} setConfig={setConfig} onSave={saveConfig} saving={savingConfig}/>}
       </div>
       {toast&&<div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",background:toast.type==="error"?"#ef4444":toast.type==="info"?"#64748b":"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:12,fontWeight:700,fontSize:14,zIndex:300,maxWidth:"90vw",textAlign:"center"}}>{toast.msg}</div>}
     </div>
@@ -521,7 +527,7 @@ function AdminMobile({ data, actions }) {
 // ── ADMIN DESKTOP ─────────────────────────────────────────────
 function AdminDesktop({ data, actions }) {
   const { products, pedidos, rejeitados, sales, usuarios, config, loadingP, loadingPedidos, loadingS, alertDays, alerts, totalValue, monthRevenue, monthlySales } = data;
-  const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, saveConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast } = actions;
+  const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, saveConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast, savingConfig } = actions;
   const [tab, setTab] = useState("overview");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("Todos");
@@ -548,9 +554,14 @@ function AdminDesktop({ data, actions }) {
       {/* SIDEBAR */}
       <div style={{width:240,background:"linear-gradient(180deg,#0f172a 0%,#1e293b 100%)",display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,bottom:0,zIndex:10}}>
         <div style={{padding:"28px 20px 20px"}}>
-          <div style={{fontSize:10,fontWeight:700,letterSpacing:3,color:"#475569",textTransform:"uppercase",marginBottom:4}}>Controle de</div>
-          <div style={{fontSize:20,fontWeight:800,color:"#fff"}}>Suplementos 💪</div>
-          <div style={{background:"rgba(59,130,246,0.2)",borderRadius:6,padding:"4px 10px",marginTop:10,display:"inline-flex"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+            {config?.logo_url ? <img src={config.logo_url} alt="logo" style={{width:40,height:40,borderRadius:10,objectFit:"cover"}}/> : <span style={{fontSize:28}}>💪</span>}
+            <div>
+              <div style={{fontSize:10,fontWeight:700,letterSpacing:2,color:"#475569",textTransform:"uppercase"}}>Admin</div>
+              <div style={{fontSize:18,fontWeight:800,color:"#fff"}}>{config?.nome_loja||"Suplementos"}</div>
+            </div>
+          </div>
+          <div style={{background:"rgba(59,130,246,0.2)",borderRadius:6,padding:"4px 10px",display:"inline-flex"}}>
             <span style={{fontSize:11,color:"#93c5fd",fontWeight:700}}>🔐 Admin</span>
           </div>
         </div>
@@ -797,18 +808,7 @@ function AdminDesktop({ data, actions }) {
         {/* CONFIG */}
         {tab==="config" && (
           <div>
-            <div style={{fontSize:22,fontWeight:800,color:"#0f172a",marginBottom:20}}>⚙️ Configurações</div>
-            <div style={{background:"#fff",borderRadius:16,padding:28,boxShadow:"0 1px 4px rgba(0,0,0,0.07)",maxWidth:480}}>
-              <div style={{fontWeight:700,fontSize:15,marginBottom:8}}>Alerta de vencimento</div>
-              <div style={{color:"#64748b",fontSize:14,marginBottom:16}}>Quantos dias antes do vencimento avisar?</div>
-              <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
-                <input type="number" min={7} max={365} value={config.alerta_vencimento_dias} onChange={e=>setConfig(c=>({...c,alerta_vencimento_dias:+e.target.value}))}
-                  style={{width:100,padding:"12px",borderRadius:10,border:"1px solid #e2e8f0",fontSize:20,fontWeight:700,textAlign:"center",outline:"none"}}/>
-                <span style={{color:"#64748b",fontSize:15}}>dias de antecedência</span>
-              </div>
-              <div style={{color:"#94a3b8",fontSize:13,marginBottom:20}}>Produtos vencendo nos próximos <b>{config.alerta_vencimento_dias} dias</b> aparecerão nos alertas.</div>
-              <button onClick={saveConfig} style={{padding:"12px 28px",borderRadius:10,border:"none",background:"#0f172a",color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer"}}>Salvar configuração</button>
-            </div>
+            <ConfigView config={config} setConfig={setConfig} onSave={saveConfig} saving={savingConfig}/>
           </div>
         )}
       </div>
@@ -1214,20 +1214,84 @@ function AlertasView({ alerts, alertDays, onEdit }) {
   });
 }
 
-function ConfigView({ config, setConfig, onSave }) {
+function ConfigView({ config, setConfig, onSave, saving }) {
+  const fi = { display:"block",width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid #e2e8f0",fontSize:14,marginTop:5,boxSizing:"border-box",outline:"none",background:"#fff" };
+  const lb = { fontSize:13,fontWeight:700,color:"#0f172a",display:"block",marginBottom:4 };
+  const section = { background:"#fff",borderRadius:14,padding:20,boxShadow:"0 1px 4px rgba(0,0,0,0.07)",marginBottom:16 };
+
   return (
-    <div style={{background:"#fff",borderRadius:14,padding:20,boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
-      <div style={{fontWeight:800,fontSize:17,marginBottom:20}}>⚙️ Configurações</div>
-      <div style={{marginBottom:20}}>
-        <label style={{fontSize:14,fontWeight:700,color:"#0f172a",display:"block",marginBottom:6}}>Alertar vencimento com quantos dias de antecedência?</label>
-        <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <input type="number" min={7} max={365} value={config.alerta_vencimento_dias} onChange={e=>setConfig(c=>({...c,alerta_vencimento_dias:+e.target.value}))}
+    <div style={{maxWidth:600}}>
+      <div style={{fontWeight:800,fontSize:17,marginBottom:16}}>⚙️ Configurações</div>
+
+      {/* Identidade visual */}
+      <div style={section}>
+        <div style={{fontWeight:700,fontSize:15,marginBottom:16,color:"#0f172a"}}>🎨 Identidade Visual</div>
+
+        <div style={{marginBottom:14}}>
+          <label style={lb}>Nome da loja</label>
+          <input style={fi} value={config.nome_loja||""} onChange={e=>setConfig(c=>({...c,nome_loja:e.target.value}))} placeholder="Ex: Bárbaros Suplementos"/>
+          <div style={{fontSize:11,color:"#94a3b8",marginTop:4}}>Aparece no cabeçalho da vitrine e do painel admin</div>
+        </div>
+
+        <div style={{marginBottom:14}}>
+          <label style={lb}>URL da logo</label>
+          <input style={fi} value={config.logo_url||""} onChange={e=>setConfig(c=>({...c,logo_url:e.target.value}))} placeholder="https://... (link de uma imagem)"/>
+          <div style={{fontSize:11,color:"#94a3b8",marginTop:4}}>Cole o link de uma imagem (PNG, JPG). Substitui o emoji 💪. Use o site imgbb.com para hospedar grátis.</div>
+          {config.logo_url && (
+            <div style={{marginTop:8,display:"flex",alignItems:"center",gap:10}}>
+              <img src={config.logo_url} alt="preview" style={{width:48,height:48,borderRadius:10,objectFit:"cover",border:"2px solid #e2e8f0"}} onError={e=>e.target.style.display="none"}/>
+              <span style={{fontSize:12,color:"#64748b"}}>Preview da logo</span>
+            </div>
+          )}
+        </div>
+
+        <div style={{marginBottom:6}}>
+          <label style={lb}>Cor do cabeçalho</label>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:6}}>
+            <div>
+              <div style={{fontSize:11,color:"#64748b",marginBottom:4}}>Cor inicial</div>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <input type="color" value={config.header_color1||"#0f172a"} onChange={e=>setConfig(c=>({...c,header_color1:e.target.value}))}
+                  style={{width:44,height:44,borderRadius:8,border:"1px solid #e2e8f0",cursor:"pointer",padding:2}}/>
+                <input style={{...fi,marginTop:0,flex:1}} value={config.header_color1||"#0f172a"} onChange={e=>setConfig(c=>({...c,header_color1:e.target.value}))} placeholder="#0f172a"/>
+              </div>
+            </div>
+            <div>
+              <div style={{fontSize:11,color:"#64748b",marginBottom:4}}>Cor final (gradiente)</div>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <input type="color" value={config.header_color2||"#1e3a5f"} onChange={e=>setConfig(c=>({...c,header_color2:e.target.value}))}
+                  style={{width:44,height:44,borderRadius:8,border:"1px solid #e2e8f0",cursor:"pointer",padding:2}}/>
+                <input style={{...fi,marginTop:0,flex:1}} value={config.header_color2||"#1e3a5f"} onChange={e=>setConfig(c=>({...c,header_color2:e.target.value}))} placeholder="#1e3a5f"/>
+              </div>
+            </div>
+          </div>
+          {/* Preview do header */}
+          <div style={{marginTop:10,borderRadius:12,padding:"14px 16px",background:`linear-gradient(135deg,${config.header_color1||"#0f172a"} 0%,${config.header_color2||"#1e3a5f"} 100%)`,color:"#fff",display:"flex",alignItems:"center",gap:10}}>
+            {config.logo_url ? <img src={config.logo_url} alt="logo" style={{width:36,height:36,borderRadius:8,objectFit:"cover"}} onError={e=>e.target.style.display="none"}/> : <span style={{fontSize:24}}>💪</span>}
+            <div>
+              <div style={{fontSize:10,opacity:.6,textTransform:"uppercase",letterSpacing:2}}>Loja de</div>
+              <div style={{fontSize:16,fontWeight:800}}>{config.nome_loja||"Suplementos"}</div>
+            </div>
+          </div>
+          <div style={{fontSize:11,color:"#94a3b8",marginTop:6}}>Preview em tempo real do cabeçalho</div>
+        </div>
+      </div>
+
+      {/* Alertas */}
+      <div style={section}>
+        <div style={{fontWeight:700,fontSize:15,marginBottom:12,color:"#0f172a"}}>⚠️ Alertas de Estoque</div>
+        <label style={lb}>Alertar vencimento com quantos dias de antecedência?</label>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginTop:6}}>
+          <input type="number" min={7} max={365} value={config.alerta_vencimento_dias||60} onChange={e=>setConfig(c=>({...c,alerta_vencimento_dias:+e.target.value}))}
             style={{width:90,padding:"10px 12px",borderRadius:10,border:"1px solid #e2e8f0",fontSize:18,fontWeight:700,textAlign:"center",outline:"none"}}/>
           <span style={{color:"#64748b",fontSize:15}}>dias antes do vencimento</span>
         </div>
-        <div style={{color:"#94a3b8",fontSize:13,marginTop:8}}>Produtos vencendo nos próximos <b>{config.alerta_vencimento_dias} dias</b> aparecerão nos alertas.</div>
+        <div style={{color:"#94a3b8",fontSize:13,marginTop:8}}>Produtos vencendo nos próximos <b>{config.alerta_vencimento_dias||60} dias</b> aparecerão nos alertas.</div>
       </div>
-      <button onClick={onSave} style={{width:"100%",padding:13,borderRadius:12,border:"none",background:"#0f172a",color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer"}}>Salvar configuração</button>
+
+      <button onClick={onSave} disabled={saving} style={{width:"100%",padding:13,borderRadius:12,border:"none",background:"#0f172a",color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",opacity:saving?0.7:1}}>
+        {saving?"Salvando...":"Salvar configurações"}
+      </button>
     </div>
   );
 }
@@ -1484,7 +1548,7 @@ function AdminPanel({ onLogout }) {
   const [rejeitados, setRejeitados] = useState([]);
   const [sales, setSales] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
-  const [config, setConfig] = useState({ alerta_vencimento_dias:60 });
+  const [config, setConfig] = useState({ alerta_vencimento_dias:60, nome_loja:'Suplementos', logo_url:'', header_color1:'#0f172a', header_color2:'#1e3a5f' });
   const [loadingP, setLoadingP] = useState(true);
   const [loadingPedidos, setLoadingPedidos] = useState(true);
   const [loadingS, setLoadingS] = useState(true);
@@ -1545,7 +1609,7 @@ function AdminPanel({ onLogout }) {
   }
   async function saveConfig() {
     setSavingConfig(true);
-    try { await db.update("configuracoes","default",{alerta_vencimento_dias:config.alerta_vencimento_dias}); showToast("Configuração salva!"); } catch { showToast("Erro","error"); } finally { setSavingConfig(false); }
+    try { await db.update("configuracoes","default",{alerta_vencimento_dias:config.alerta_vencimento_dias,nome_loja:config.nome_loja,logo_url:config.logo_url,header_color1:config.header_color1,header_color2:config.header_color2}); showToast("Configuração salva!"); } catch { showToast("Erro","error"); } finally { setSavingConfig(false); }
   }
 
   const alertDays = config.alerta_vencimento_dias;
@@ -1556,7 +1620,7 @@ function AdminPanel({ onLogout }) {
   const monthRevenue = monthlySales.reduce((s,v)=>s+Number(v.total),0);
 
   const sharedData = { products,pedidos,rejeitados,sales,usuarios,config,loadingP,loadingPedidos,loadingS,alertDays,alerts,totalValue,monthRevenue,monthlySales };
-  const sharedActions = { confirmarPedido,rejeitarPedido,handleSaveProduct,handleDelete,saveConfig,setConfig,showAddProduct,setShowAddProduct,editProduct,setEditProduct,toast,onLogout };
+  const sharedActions = { confirmarPedido,rejeitarPedido,handleSaveProduct,handleDelete,saveConfig,savingConfig,setConfig,showAddProduct,setShowAddProduct,editProduct,setEditProduct,toast,onLogout };
 
   return (
     <>
@@ -1607,8 +1671,10 @@ export default function App() {
   const [products, setProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
 
+  const [vitrineConfig, setVitrineConfig] = useState({ nome_loja:"Suplementos", logo_url:"", header_color1:"#0f172a", header_color2:"#1e3a5f" });
   useEffect(()=>{
     db.select("produtos","").then(data=>{ setProducts(data); setLoadingProducts(false); }).catch(()=>setLoadingProducts(false));
+    db.select("configuracoes","id=eq.default").then(c=>{ if(c.length) setVitrineConfig(c[0]); }).catch(()=>{});
   },[]);
 
   function handleLogin(u) { setUser(u); setShowAuth(false); }
@@ -1622,7 +1688,7 @@ export default function App() {
 
   return (
     <>
-      <Vitrine products={products} loading={loadingProducts} user={user} onLogout={handleLogout} onShowAuth={()=>setShowAuth(true)}/>
+      <Vitrine products={products} loading={loadingProducts} user={user} onLogout={handleLogout} onShowAuth={()=>setShowAuth(true)} config={vitrineConfig}/>
       {showAuth&&<AuthModal onClose={()=>setShowAuth(false)} onLogin={handleLogin}/>}
     </>
   );
