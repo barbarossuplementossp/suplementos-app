@@ -508,7 +508,7 @@ function AdminMobile({ data, actions }) {
             })}
           </>
         )}
-        {tab==="vendas" && <VendasView sales={sales} loading={loadingS} monthRevenue={monthRevenue} monthlySales={monthlySales}/>}
+        {tab==="vendas" && <VendasView sales={sales} loading={loadingS} monthRevenue={monthRevenue} monthlySales={monthlySales} products={products}/>}
         {tab==="clientes" && <ClientesView sales={sales} loadingS={loadingS} usuarios={usuarios}/>}
         {tab==="alertas" && <AlertasView alerts={alerts} alertDays={alertDays} onEdit={p=>{setEditProduct({...p,minQty:p.min_qty,costPrice:p.cost_price});setShowAddProduct(true);}}/>}
         {tab==="config" && <ConfigView config={config} setConfig={setConfig} onSave={saveConfig}/>}
@@ -761,7 +761,7 @@ function AdminDesktop({ data, actions }) {
         {tab==="vendas" && (
           <div>
             <div style={{fontSize:22,fontWeight:800,color:"#0f172a",marginBottom:20}}>💰 Vendas</div>
-            <VendasView sales={sales} loading={loadingS} monthRevenue={monthRevenue} monthlySales={monthlySales} desktop/>
+            <VendasView sales={sales} loading={loadingS} monthRevenue={monthRevenue} monthlySales={monthlySales} desktop products={products}/>
           </div>
         )}
 
@@ -923,7 +923,7 @@ function PedidosView({ pedidos, rejeitados, loading, onConfirm, onReject, deskto
   );
 }
 
-function VendasView({ sales, loading, monthRevenue, monthlySales, desktop }) {
+function VendasView({ sales, loading, monthRevenue, monthlySales, desktop, products }) {
   const [filtCliente, setFiltCliente] = useState("");
   const [filtPagamento, setFiltPagamento] = useState("Todos");
   const [filtProduto, setFiltProduto] = useState("");
@@ -968,7 +968,25 @@ function VendasView({ sales, loading, monthRevenue, monthlySales, desktop }) {
   function gerarPDF() {
     const win = window.open("","_blank");
     const dataStr = filtDataDe||filtDataAte ? `${filtDataDe?new Date(filtDataDe+"T12:00").toLocaleDateString("pt-BR"):"início"} até ${filtDataAte?new Date(filtDataAte+"T12:00").toLocaleDateString("pt-BR"):"hoje"}` : "Todo o período";
-    const rankingRows = ranking.map((p,i)=>`<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:8px">${i+1}º</td><td style="padding:8px;font-weight:600">${p.name}</td><td style="padding:8px;text-align:center">${p.qty} un</td><td style="padding:8px;text-align:right;font-weight:700;color:#16a34a">R$ ${p.total.toFixed(2)}</td></tr>`).join("");
+    const rankingRows = ranking.map((p,i)=>{
+      const prodName=p.name.split(" (")[0]; const prodFlavor=p.name.match(/\(([^)]+)\)/)?.[1]||"";
+      const prodData=(products||[]).find(pr=>pr.name===prodName&&pr.flavor===prodFlavor);
+      const costUnit=prodData?.cost_price?Number(prodData.cost_price):null;
+      const saleUnit=p.total/p.qty;
+      const totalCost=costUnit?costUnit*p.qty:null;
+      const lucro=totalCost?p.total-totalCost:null;
+      const margem=lucro?((lucro/p.total)*100).toFixed(1):null;
+      return `<tr style="border-bottom:1px solid #e2e8f0">
+        <td style="padding:8px">${p.name}</td>
+        <td style="padding:8px;text-align:center">${p.qty} un</td>
+        <td style="padding:8px;text-align:right">R$ ${saleUnit.toFixed(2)}</td>
+        <td style="padding:8px;text-align:right;font-weight:700;color:#16a34a">R$ ${p.total.toFixed(2)}</td>
+        <td style="padding:8px;text-align:right;color:#64748b">${costUnit?`R$ ${costUnit.toFixed(2)}`:"—"}</td>
+        <td style="padding:8px;text-align:right;color:#64748b">${totalCost?`R$ ${totalCost.toFixed(2)}`:"—"}</td>
+        <td style="padding:8px;text-align:right;font-weight:700;color:${lucro&&lucro>0?"#16a34a":"#ef4444"}">${lucro?`R$ ${lucro.toFixed(2)}`:"—"}</td>
+        <td style="padding:8px;text-align:center"><span style="background:${margem&&Number(margem)>=30?"#d1fae5":margem&&Number(margem)>=15?"#fef3c7":"#fee2e2"};color:${margem&&Number(margem)>=30?"#065f46":margem&&Number(margem)>=15?"#92400e":"#dc2626"};padding:2px 8px;border-radius:4px;font-weight:700">${margem?margem+"%":"—"}</span></td>
+      </tr>`;
+    }).join("");
     const vendasRows = filtered.map(s=>`
       <tr style="border-bottom:1px solid #e2e8f0">
         <td style="padding:8px;font-size:12px;color:#64748b">${new Date(s.created_at).toLocaleDateString("pt-BR")}</td>
@@ -988,8 +1006,8 @@ function VendasView({ sales, loading, monthRevenue, monthlySales, desktop }) {
       <div class="kpi"><div class="kpi-val">R$ ${filtered.length>0?(filtTotal/filtered.length).toFixed(2):"0,00"}</div><div class="kpi-label">Ticket médio</div></div>
       <div class="kpi"><div class="kpi-val">${ranking.reduce((s,p)=>s+p.qty,0)}</div><div class="kpi-label">Itens vendidos</div></div>
     </div>
-    <h2>🏆 Ranking de Produtos</h2>
-    <table><thead><tr><th>#</th><th>Produto</th><th style="text-align:center">Qtd</th><th style="text-align:right">Faturado</th></tr></thead><tbody>${rankingRows}</tbody></table>
+    <h2>💰 Lucratividade por Produto</h2>
+    <table><thead><tr><th>Produto</th><th style="text-align:center">Qtd</th><th style="text-align:right">Vl.Venda Unit.</th><th style="text-align:right">Total Vendido</th><th style="text-align:right">Vl.Custo Unit.</th><th style="text-align:right">Total Custo</th><th style="text-align:right">Lucro Líquido</th><th style="text-align:center">Margem</th></tr></thead><tbody>${rankingRows}</tbody></table>
     <h2>📋 Detalhamento de Vendas</h2>
     <table><thead><tr><th>Data</th><th>Cliente</th><th>Itens</th><th>Pagamento</th><th style="text-align:right">Total</th></tr></thead><tbody>${vendasRows}</tbody></table>
     <p style="margin-top:32px;color:#94a3b8;font-size:12px">Gerado em ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}</p>
@@ -1060,6 +1078,99 @@ function VendasView({ sales, loading, monthRevenue, monthlySales, desktop }) {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+    )}
+
+    {/* Lucratividade por produto */}
+    {ranking.length>0 && (
+      <div style={{background:"#fff",borderRadius:14,padding:16,marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
+        <div style={{fontWeight:700,fontSize:14,marginBottom:12}}>💰 Lucratividade por produto {hasFilters?"(filtrado)":""}</div>
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",minWidth:600}}>
+            <thead>
+              <tr style={{background:"#f8fafc",borderBottom:"2px solid #e2e8f0"}}>
+                {["Produto","Qtd","Vl. Venda Unit.","Total Vendido","Vl. Custo Unit.","Total Custo","Lucro Líquido","Margem"].map(h=>(
+                  <th key={h} style={{textAlign:"left",padding:"10px 12px",fontSize:11,color:"#64748b",fontWeight:700,whiteSpace:"nowrap"}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {ranking.map(p=>{
+                // Find product cost from products list
+                const prodName = p.name.split(" (")[0];
+                const prodFlavor = p.name.match(/\(([^)]+)\)/)?.[1]||"";
+                const prodData = (products||[]).find(pr=>pr.name===prodName&&pr.flavor===prodFlavor);
+                const costUnit = prodData?.cost_price ? Number(prodData.cost_price) : null;
+                const saleUnit = p.total / p.qty;
+                const totalCost = costUnit ? costUnit * p.qty : null;
+                const lucro = totalCost ? p.total - totalCost : null;
+                const margem = lucro ? ((lucro/p.total)*100).toFixed(1) : null;
+                return (
+                  <tr key={p.name} style={{borderBottom:"1px solid #f1f5f9"}}>
+                    <td style={{padding:"10px 12px",fontWeight:600,fontSize:13}}>{p.name}</td>
+                    <td style={{padding:"10px 12px",fontSize:13,textAlign:"center"}}>
+                      <span style={{background:"#dbeafe",color:"#1d4ed8",borderRadius:6,padding:"2px 8px",fontWeight:700}}>{p.qty} un</span>
+                    </td>
+                    <td style={{padding:"10px 12px",fontSize:13,fontWeight:600}}>R$ {saleUnit.toFixed(2)}</td>
+                    <td style={{padding:"10px 12px",fontSize:13,fontWeight:700,color:"#16a34a"}}>R$ {p.total.toFixed(2)}</td>
+                    <td style={{padding:"10px 12px",fontSize:13,color:"#64748b"}}>{costUnit ? `R$ ${costUnit.toFixed(2)}` : <span style={{color:"#cbd5e1"}}>—</span>}</td>
+                    <td style={{padding:"10px 12px",fontSize:13,color:"#64748b"}}>{totalCost ? `R$ ${totalCost.toFixed(2)}` : <span style={{color:"#cbd5e1"}}>—</span>}</td>
+                    <td style={{padding:"10px 12px",fontWeight:700,fontSize:13,color:lucro>0?"#16a34a":"#ef4444"}}>{lucro ? `R$ ${lucro.toFixed(2)}` : <span style={{color:"#cbd5e1"}}>—</span>}</td>
+                    <td style={{padding:"10px 12px"}}>
+                      {margem ? (
+                        <span style={{background:Number(margem)>=30?"#d1fae5":Number(margem)>=15?"#fef3c7":"#fee2e2",color:Number(margem)>=30?"#065f46":Number(margem)>=15?"#92400e":"#dc2626",borderRadius:6,padding:"3px 8px",fontSize:12,fontWeight:800}}>
+                          {margem}%
+                        </span>
+                      ) : <span style={{color:"#cbd5e1",fontSize:12}}>Sem custo cadastrado</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr style={{background:"#f8fafc",borderTop:"2px solid #e2e8f0"}}>
+                <td style={{padding:"10px 12px",fontWeight:800,fontSize:13}}>TOTAL</td>
+                <td style={{padding:"10px 12px",fontSize:13,textAlign:"center",fontWeight:700}}>{ranking.reduce((s,p)=>s+p.qty,0)} un</td>
+                <td></td>
+                <td style={{padding:"10px 12px",fontWeight:800,fontSize:13,color:"#16a34a"}}>R$ {filtTotal.toFixed(2)}</td>
+                <td></td>
+                <td style={{padding:"10px 12px",fontWeight:700,fontSize:13,color:"#64748b"}}>
+                  {(() => {
+                    const totalCusto = ranking.reduce((s,p)=>{
+                      const prodName=p.name.split(" (")[0]; const prodFlavor=p.name.match(/\(([^)]+)\)/)?.[1]||"";
+                      const prodData=(products||[]).find(pr=>pr.name===prodName&&pr.flavor===prodFlavor);
+                      return prodData?.cost_price ? s + Number(prodData.cost_price)*p.qty : s;
+                    },0);
+                    return totalCusto>0 ? `R$ ${totalCusto.toFixed(2)}` : "—";
+                  })()}
+                </td>
+                <td style={{padding:"10px 12px",fontWeight:800,fontSize:13}}>
+                  {(() => {
+                    const totalCusto = ranking.reduce((s,p)=>{
+                      const prodName=p.name.split(" (")[0]; const prodFlavor=p.name.match(/\(([^)]+)\)/)?.[1]||"";
+                      const prodData=(products||[]).find(pr=>pr.name===prodName&&pr.flavor===prodFlavor);
+                      return prodData?.cost_price ? s + Number(prodData.cost_price)*p.qty : s;
+                    },0);
+                    const lucroTotal = totalCusto>0 ? filtTotal-totalCusto : null;
+                    return lucroTotal ? <span style={{color:"#16a34a"}}>R$ {lucroTotal.toFixed(2)}</span> : "—";
+                  })()}
+                </td>
+                <td style={{padding:"10px 12px"}}>
+                  {(() => {
+                    const totalCusto = ranking.reduce((s,p)=>{
+                      const prodName=p.name.split(" (")[0]; const prodFlavor=p.name.match(/\(([^)]+)\)/)?.[1]||"";
+                      const prodData=(products||[]).find(pr=>pr.name===prodName&&pr.flavor===prodFlavor);
+                      return prodData?.cost_price ? s + Number(prodData.cost_price)*p.qty : s;
+                    },0);
+                    const lucroTotal = totalCusto>0 ? filtTotal-totalCusto : null;
+                    const margemTotal = lucroTotal ? ((lucroTotal/filtTotal)*100).toFixed(1) : null;
+                    return margemTotal ? <span style={{background:"#d1fae5",color:"#065f46",borderRadius:6,padding:"3px 8px",fontSize:12,fontWeight:800}}>{margemTotal}%</span> : "—";
+                  })()}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       </div>
     )}
