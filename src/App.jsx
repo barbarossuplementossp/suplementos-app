@@ -1031,7 +1031,7 @@ function VendasView({ sales, loading, monthRevenue, monthlySales, desktop }) {
           </div>
           <div><label style={{fontSize:11,fontWeight:600,color:"#64748b",display:"block",marginBottom:4}}>DATA DE</label><input style={inpFilt} type="date" value={filtDataDe} onChange={e=>setFiltDataDe(e.target.value)}/></div>
           <div><label style={{fontSize:11,fontWeight:600,color:"#64748b",display:"block",marginBottom:4}}>DATA ATÉ</label><input style={inpFilt} type="date" value={filtDataAte} onChange={e=>setFiltDataAte(e.target.value)}/></div>
-          <div style={{display:"flex",gap:8"}}>
+          <div style={{display:"flex",gap:8}}>
             <div style={{flex:1}}><label style={{fontSize:11,fontWeight:600,color:"#64748b",display:"block",marginBottom:4}}>VALOR MÍN</label><input style={inpFilt} type="number" placeholder="R$ 0" value={filtValMin} onChange={e=>setFiltValMin(e.target.value)}/></div>
             <div style={{flex:1}}><label style={{fontSize:11,fontWeight:600,color:"#64748b",display:"block",marginBottom:4}}>VALOR MÁX</label><input style={inpFilt} type="number" placeholder="R$ 999" value={filtValMax} onChange={e=>setFiltValMax(e.target.value)}/></div>
           </div>
