@@ -760,8 +760,38 @@ function AdminDesktop({ data, actions }) {
         {/* VENDAS */}
         {tab==="vendas" && (
           <div>
-            <div style={{fontSize:22,fontWeight:800,color:"#0f172a",marginBottom:20}}>💰 Vendas</div>
-            <VendasView sales={sales} loading={loadingS} monthRevenue={monthRevenue} monthlySales={monthlySales} desktop/>
+            <div style={{fontSize:22,fontWeight:800,color:"#0f172a",marginBottom:20}}>💰 Vendas Confirmadas</div>
+            <div style={{background:"linear-gradient(135deg,#22c55e,#16a34a)",borderRadius:16,padding:20,color:"#fff",marginBottom:20,display:"inline-flex",flexDirection:"column",minWidth:240}}>
+              <div style={{fontSize:12,fontWeight:600,opacity:.8}}>FATURAMENTO DO MÊS</div>
+              <div style={{fontSize:36,fontWeight:800}}>R$ {monthRevenue.toFixed(2)}</div>
+              <div style={{fontSize:13,opacity:.8}}>{monthlySales.length} venda{monthlySales.length!==1?"s":""}</div>
+            </div>
+            {loadingS ? <Spinner/> : sales.length===0 ? <div style={{background:"#fff",borderRadius:16,padding:48,textAlign:"center",color:"#94a3b8"}}>Nenhuma venda confirmada ainda.</div> : (
+              <div style={{background:"#fff",borderRadius:16,boxShadow:"0 1px 4px rgba(0,0,0,0.07)",overflow:"hidden"}}>
+                <table style={{width:"100%",borderCollapse:"collapse"}}>
+                  <thead>
+                    <tr style={{background:"#f8fafc",borderBottom:"2px solid #e2e8f0"}}>
+                      {["Data","Cliente","Itens","Pagamento","Total"].map(h=><th key={h} style={{textAlign:"left",padding:"12px 14px",fontSize:12,color:"#64748b",fontWeight:700}}>{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sales.map(s=>(
+                      <tr key={s.id} style={{borderBottom:"1px solid #f1f5f9"}}>
+                        <td style={{padding:"12px 14px",fontSize:13,color:"#64748b"}}>{new Date(s.created_at).toLocaleDateString("pt-BR")}</td>
+                        <td style={{padding:"12px 14px",fontWeight:700,fontSize:14}}>{s.cliente}</td>
+                        <td style={{padding:"12px 14px",fontSize:13}}>
+                          {(s.items||[]).map((item,i)=>(
+                            <div key={i} style={{color:i===0?"#0f172a":"#64748b",fontSize:i===0?13:12}}>{item.product_name} ({item.flavor}) ×{item.qty}</div>
+                          ))}
+                        </td>
+                        <td style={{padding:"12px 14px"}}><span style={{background:"#f1f5f9",borderRadius:6,padding:"3px 10px",fontSize:12,fontWeight:700,color:"#475569"}}>{s.pagamento}</span></td>
+                        <td style={{padding:"12px 14px",fontWeight:800,fontSize:15,color:"#16a34a"}}>R$ {Number(s.total).toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
@@ -923,151 +953,15 @@ function PedidosView({ pedidos, rejeitados, loading, onConfirm, onReject, deskto
   );
 }
 
-function VendasView({ sales, loading, monthRevenue, monthlySales, desktop }) {
-  const [filtCliente, setFiltCliente] = useState("");
-  const [filtPagamento, setFiltPagamento] = useState("Todos");
-  const [filtProduto, setFiltProduto] = useState("");
-  const [filtDataDe, setFiltDataDe] = useState("");
-  const [filtDataAte, setFiltDataAte] = useState("");
-  const [filtValMin, setFiltValMin] = useState("");
-  const [filtValMax, setFiltValMax] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
-
+function VendasView({ sales, loading, monthRevenue, monthlySales }) {
   if (loading) return <Spinner/>;
-
-  // Apply filters
-  const filtered = sales.filter(s=>{
-    if (filtCliente && !s.cliente?.toLowerCase().includes(filtCliente.toLowerCase())) return false;
-    if (filtPagamento!=="Todos" && s.pagamento!==filtPagamento) return false;
-    if (filtDataDe && s.created_at < filtDataDe) return false;
-    if (filtDataAte && s.created_at.slice(0,10) > filtDataAte) return false;
-    if (filtValMin && Number(s.total) < Number(filtValMin)) return false;
-    if (filtValMax && Number(s.total) > Number(filtValMax)) return false;
-    if (filtProduto) {
-      const match = (s.items||[]).some(i=>i.product_name?.toLowerCase().includes(filtProduto.toLowerCase())||i.flavor?.toLowerCase().includes(filtProduto.toLowerCase()));
-      if (!match) return false;
-    }
-    return true;
-  });
-
-  const filtTotal = filtered.reduce((s,v)=>s+Number(v.total),0);
-  const hasFilters = filtCliente||filtPagamento!=="Todos"||filtDataDe||filtDataAte||filtValMin||filtValMax||filtProduto;
-
-  function clearFilters() { setFiltCliente(""); setFiltPagamento("Todos"); setFiltDataDe(""); setFiltDataAte(""); setFiltValMin(""); setFiltValMax(""); setFiltProduto(""); }
-
-  // Product ranking
-  const prodMap = {};
-  filtered.forEach(s=>(s.items||[]).forEach(item=>{
-    const k = `${item.product_name} (${item.flavor})`;
-    if (!prodMap[k]) prodMap[k]={name:k,qty:0,total:0};
-    prodMap[k].qty+=item.qty;
-    prodMap[k].total+=item.price*item.qty;
-  }));
-  const ranking = Object.values(prodMap).sort((a,b)=>b.total-a.total);
-
-  function gerarPDF() {
-    const win = window.open("","_blank");
-    const dataStr = filtDataDe||filtDataAte ? `${filtDataDe?new Date(filtDataDe+"T12:00").toLocaleDateString("pt-BR"):"início"} até ${filtDataAte?new Date(filtDataAte+"T12:00").toLocaleDateString("pt-BR"):"hoje"}` : "Todo o período";
-    const rankingRows = ranking.map((p,i)=>`<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:8px">${i+1}º</td><td style="padding:8px;font-weight:600">${p.name}</td><td style="padding:8px;text-align:center">${p.qty} un</td><td style="padding:8px;text-align:right;font-weight:700;color:#16a34a">R$ ${p.total.toFixed(2)}</td></tr>`).join("");
-    const vendasRows = filtered.map(s=>`
-      <tr style="border-bottom:1px solid #e2e8f0">
-        <td style="padding:8px;font-size:12px;color:#64748b">${new Date(s.created_at).toLocaleDateString("pt-BR")}</td>
-        <td style="padding:8px;font-weight:600">${s.cliente||"—"}</td>
-        <td style="padding:8px;font-size:12px">${(s.items||[]).map(i=>`${i.product_name} (${i.flavor}) ×${i.qty}`).join(", ")}</td>
-        <td style="padding:8px"><span style="background:#f1f5f9;border-radius:4px;padding:2px 6px;font-size:11px">${s.pagamento}</span></td>
-        <td style="padding:8px;text-align:right;font-weight:700;color:#16a34a">R$ ${Number(s.total).toFixed(2)}</td>
-      </tr>`).join("");
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório de Vendas</title>
-    <style>body{font-family:Arial,sans-serif;margin:32px;color:#0f172a}h1{font-size:24px;margin-bottom:4px}h2{font-size:16px;margin:24px 0 10px;color:#475569;border-bottom:2px solid #e2e8f0;padding-bottom:6px}table{width:100%;border-collapse:collapse}th{text-align:left;padding:10px 8px;background:#f8fafc;font-size:12px;color:#64748b;font-weight:700}.kpi{display:inline-block;background:#f8fafc;border-radius:10px;padding:14px 20px;margin:6px;text-align:center}.kpi-val{font-size:22px;font-weight:800;color:#0f172a}.kpi-label{font-size:11px;color:#94a3b8;margin-top:2px}@media print{button{display:none}}</style>
-    </head><body>
-    <h1>📊 Relatório de Vendas</h1>
-    <p style="color:#64748b;margin-bottom:20px">Período: <b>${dataStr}</b>${hasFilters?" · Filtros aplicados":""}</p>
-    <div>
-      <div class="kpi"><div class="kpi-val">R$ ${filtTotal.toFixed(2)}</div><div class="kpi-label">Faturamento</div></div>
-      <div class="kpi"><div class="kpi-val">${filtered.length}</div><div class="kpi-label">Vendas</div></div>
-      <div class="kpi"><div class="kpi-val">R$ ${filtered.length>0?(filtTotal/filtered.length).toFixed(2):"0,00"}</div><div class="kpi-label">Ticket médio</div></div>
-      <div class="kpi"><div class="kpi-val">${ranking.reduce((s,p)=>s+p.qty,0)}</div><div class="kpi-label">Itens vendidos</div></div>
-    </div>
-    <h2>🏆 Ranking de Produtos</h2>
-    <table><thead><tr><th>#</th><th>Produto</th><th style="text-align:center">Qtd</th><th style="text-align:right">Faturado</th></tr></thead><tbody>${rankingRows}</tbody></table>
-    <h2>📋 Detalhamento de Vendas</h2>
-    <table><thead><tr><th>Data</th><th>Cliente</th><th>Itens</th><th>Pagamento</th><th style="text-align:right">Total</th></tr></thead><tbody>${vendasRows}</tbody></table>
-    <p style="margin-top:32px;color:#94a3b8;font-size:12px">Gerado em ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}</p>
-    <script>window.onload=()=>window.print()</script>
-    </body></html>`);
-    win.document.close();
-  }
-
-  const inpFilt = {padding:"8px 12px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:13,outline:"none",background:"#fff",width:"100%",boxSizing:"border-box"};
-
   return (<>
-    {/* Header */}
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
-      <div style={{background:"linear-gradient(135deg,#22c55e,#16a34a)",borderRadius:14,padding:"12px 20px",color:"#fff",flex:1,minWidth:200}}>
-        <div style={{fontSize:11,fontWeight:600,opacity:.8}}>FATURAMENTO {hasFilters?"(FILTRADO)":"DO MÊS"}</div>
-        <div style={{fontSize:26,fontWeight:800}}>R$ {hasFilters?filtTotal.toFixed(2):monthRevenue.toFixed(2)}</div>
-        <div style={{fontSize:11,opacity:.8}}>{hasFilters?filtered.length:monthlySales.length} venda{(hasFilters?filtered.length:monthlySales.length)!==1?"s":""}</div>
-      </div>
-      <div style={{display:"flex",gap:8}}>
-        <button onClick={()=>setShowFilters(f=>!f)} style={{padding:"10px 16px",borderRadius:10,border:"1px solid #e2e8f0",background:showFilters?"#0f172a":"#fff",color:showFilters?"#fff":"#475569",fontWeight:600,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
-          🔍 Filtros {hasFilters&&<span style={{background:"#3b82f6",color:"#fff",borderRadius:10,padding:"1px 6px",fontSize:11}}>!</span>}
-        </button>
-        <button onClick={gerarPDF} style={{padding:"10px 16px",borderRadius:10,border:"none",background:"#6366f1",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>
-          📄 Exportar PDF
-        </button>
-      </div>
+    <div style={{background:"linear-gradient(135deg,#22c55e,#16a34a)",borderRadius:14,padding:16,color:"#fff",marginBottom:16}}>
+      <div style={{fontSize:12,fontWeight:600,opacity:.8}}>FATURAMENTO DO MÊS</div>
+      <div style={{fontSize:32,fontWeight:800}}>R$ {monthRevenue.toFixed(2)}</div>
+      <div style={{fontSize:12,opacity:.8}}>{monthlySales.length} venda{monthlySales.length!==1?"s":""} em {new Date().toLocaleDateString("pt-BR",{month:"long",year:"numeric"})}</div>
     </div>
-
-    {/* Filters panel */}
-    {showFilters && (
-      <div style={{background:"#fff",borderRadius:14,padding:16,marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
-        <div style={{display:"grid",gridTemplateColumns:desktop?"repeat(3,1fr)":"1fr 1fr",gap:10,marginBottom:10}}>
-          <div><label style={{fontSize:11,fontWeight:600,color:"#64748b",display:"block",marginBottom:4}}>CLIENTE</label><input style={inpFilt} placeholder="Nome do cliente..." value={filtCliente} onChange={e=>setFiltCliente(e.target.value)}/></div>
-          <div><label style={{fontSize:11,fontWeight:600,color:"#64748b",display:"block",marginBottom:4}}>PRODUTO</label><input style={inpFilt} placeholder="Nome ou sabor..." value={filtProduto} onChange={e=>setFiltProduto(e.target.value)}/></div>
-          <div><label style={{fontSize:11,fontWeight:600,color:"#64748b",display:"block",marginBottom:4}}>PAGAMENTO</label>
-            <select style={inpFilt} value={filtPagamento} onChange={e=>setFiltPagamento(e.target.value)}>
-              {["Todos","Dinheiro","Pix","Débito","Crédito"].map(p=><option key={p}>{p}</option>)}
-            </select>
-          </div>
-          <div><label style={{fontSize:11,fontWeight:600,color:"#64748b",display:"block",marginBottom:4}}>DATA DE</label><input style={inpFilt} type="date" value={filtDataDe} onChange={e=>setFiltDataDe(e.target.value)}/></div>
-          <div><label style={{fontSize:11,fontWeight:600,color:"#64748b",display:"block",marginBottom:4}}>DATA ATÉ</label><input style={inpFilt} type="date" value={filtDataAte} onChange={e=>setFiltDataAte(e.target.value)}/></div>
-          <div style={{display:"flex",gap:8"}}>
-            <div style={{flex:1}}><label style={{fontSize:11,fontWeight:600,color:"#64748b",display:"block",marginBottom:4}}>VALOR MÍN</label><input style={inpFilt} type="number" placeholder="R$ 0" value={filtValMin} onChange={e=>setFiltValMin(e.target.value)}/></div>
-            <div style={{flex:1}}><label style={{fontSize:11,fontWeight:600,color:"#64748b",display:"block",marginBottom:4}}>VALOR MÁX</label><input style={inpFilt} type="number" placeholder="R$ 999" value={filtValMax} onChange={e=>setFiltValMax(e.target.value)}/></div>
-          </div>
-        </div>
-        {hasFilters&&<button onClick={clearFilters} style={{padding:"6px 14px",borderRadius:8,border:"none",background:"#fee2e2",color:"#dc2626",fontWeight:600,fontSize:12,cursor:"pointer"}}>✕ Limpar filtros</button>}
-      </div>
-    )}
-
-    {/* Ranking */}
-    {ranking.length>0 && (
-      <div style={{background:"#fff",borderRadius:14,padding:16,marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
-        <div style={{fontWeight:700,fontSize:14,marginBottom:10}}>🏆 Ranking de produtos {hasFilters?"(filtrado)":""}</div>
-        <div style={{display:"flex",flexDirection:"column",gap:6}}>
-          {ranking.slice(0,5).map((p,i)=>(
-            <div key={p.name} style={{display:"flex",alignItems:"center",gap:10}}>
-              <span style={{fontSize:13,fontWeight:800,color:i===0?"#f59e0b":i===1?"#94a3b8":i===2?"#b45309":"#cbd5e1",minWidth:20}}>{i+1}º</span>
-              <div style={{flex:1}}>
-                <div style={{fontWeight:600,fontSize:13}}>{p.name}</div>
-                <div style={{background:"#f1f5f9",borderRadius:4,height:4,marginTop:3}}>
-                  <div style={{background:"#6366f1",borderRadius:4,height:4,width:`${(p.total/ranking[0].total*100).toFixed(0)}%`}}/>
-                </div>
-              </div>
-              <div style={{textAlign:"right"}}>
-                <div style={{fontWeight:700,fontSize:13,color:"#16a34a"}}>R$ {p.total.toFixed(2)}</div>
-                <div style={{fontSize:11,color:"#94a3b8"}}>{p.qty} un</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )}
-
-    {/* Sales list */}
-    {filtered.length===0 ? (
-      <div style={{textAlign:"center",color:"#94a3b8",padding:40}}>Nenhuma venda encontrada{hasFilters?" com estes filtros":""}.</div>
-    ) : filtered.map(s=>(
+    {sales.length===0?<div style={{textAlign:"center",color:"#94a3b8",padding:40}}>Nenhuma venda confirmada ainda.</div>:sales.map(s=>(
       <div key={s.id} style={{background:"#fff",borderRadius:12,padding:14,marginBottom:10,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
           <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
@@ -1259,10 +1153,8 @@ function ClientesView({ sales, loadingS, usuarios }) {
 
   const allClients = Object.values(clientsMap).sort((a,b)=>b.total-a.total);
   const inativos = allClients.filter(c=>Math.floor((new Date()-new Date(c.ultimaCompra))/86400000)>=INATIVO_DIAS);
-  const semCompra = (usuarios||[]).filter(u=>!clientsMap[u.nome]);
   const listBase = subTab==="inativos" ? inativos : allClients;
   const filtered = listBase.filter(c=>c.nome.toLowerCase().includes(search.toLowerCase()));
-  const filteredSemCompra = semCompra.filter(u=>(u.nome||"").toLowerCase().includes(search.toLowerCase()));
 
   if (loadingS) return <Spinner/>;
 
@@ -1279,12 +1171,8 @@ function ClientesView({ sales, loadingS, usuarios }) {
         </div>
 
         {/* Sub-tabs */}
-        <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
-          {[
-            ["todos",`Todos (${allClients.length})`],
-            ["inativos",`⏰ +${INATIVO_DIAS}d sem comprar (${inativos.length})`],
-            ["semcompra",`👤 Nunca compraram (${semCompra.length})`]
-          ].map(([id,label])=>(
+        <div style={{display:"flex",gap:8,marginBottom:14}}>
+          {[["todos",`Todos (${allClients.length})`],["inativos",`⏰ Sem comprar há +${INATIVO_DIAS}d (${inativos.length})`]].map(([id,label])=>(
             <button key={id} onClick={()=>{setSubTab(id);setSelected(null);}} style={{padding:"7px 16px",borderRadius:20,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,background:subTab===id?"#0f172a":"#e2e8f0",color:subTab===id?"#fff":"#475569"}}>
               {label}
             </button>
@@ -1294,45 +1182,7 @@ function ClientesView({ sales, loadingS, usuarios }) {
         <input placeholder="🔍 Buscar cliente..." value={search} onChange={e=>setSearch(e.target.value)}
           style={{width:"100%",padding:"10px 14px",borderRadius:10,border:"1px solid #e2e8f0",fontSize:14,outline:"none",background:"#fff",boxSizing:"border-box",marginBottom:14}}/>
 
-        {subTab==="semcompra" ? (
-          semCompra.length===0 ? (
-            <div style={{background:"#fff",borderRadius:16,padding:48,textAlign:"center",color:"#94a3b8"}}>
-              <div style={{fontSize:40,marginBottom:8}}>🎉</div>
-              <div style={{fontWeight:600}}>Todos os cadastrados já compraram!</div>
-            </div>
-          ) : (
-            <div style={{background:"#fff",borderRadius:16,boxShadow:"0 1px 4px rgba(0,0,0,0.07)",overflow:"hidden"}}>
-              <table style={{width:"100%",borderCollapse:"collapse"}}>
-                <thead>
-                  <tr style={{background:"#f8fafc",borderBottom:"2px solid #e2e8f0"}}>
-                    {["Cliente","Telefone","E-mail","Cadastro"].map(h=>(
-                      <th key={h} style={{textAlign:"left",padding:"12px 14px",fontSize:12,color:"#64748b",fontWeight:700}}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredSemCompra.map(u=>(
-                    <tr key={u.id} style={{borderBottom:"1px solid #f1f5f9"}}>
-                      <td style={{padding:"12px 14px",fontWeight:700,fontSize:14}}>{u.nome}</td>
-                      <td style={{padding:"12px 14px",fontSize:13}}>
-                        {u.telefone ? (
-                          <a href={`https://wa.me/55${u.telefone.replace(/\D/g,"")}?text=${encodeURIComponent(`Olá ${u.nome.split(" ")[0]}! 💪 Vi que você se cadastrou mas ainda não fez nenhuma compra. Posso te ajudar a escolher algum suplemento?`)}`}
-                            target="_blank" rel="noreferrer"
-                            style={{color:"#25d366",fontWeight:700,textDecoration:"none",display:"flex",alignItems:"center",gap:4}}>
-                            📲 {u.telefone}
-                          </a>
-                        ) : <span style={{color:"#cbd5e1"}}>—</span>}
-                      </td>
-                      <td style={{padding:"12px 14px",fontSize:13,color:"#64748b"}}>{u.email||"—"}</td>
-                      <td style={{padding:"12px 14px",fontSize:13,color:"#94a3b8"}}>{u.created_at?new Date(u.created_at).toLocaleDateString("pt-BR"):"—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {filteredSemCompra.length===0&&<div style={{textAlign:"center",color:"#94a3b8",padding:24}}>Nenhum cliente encontrado</div>}
-            </div>
-          )
-        ) : allClients.length===0 ? (
+        {allClients.length===0 ? (
           <div style={{background:"#fff",borderRadius:16,padding:48,textAlign:"center",color:"#94a3b8"}}>
             <div style={{fontSize:40,marginBottom:8}}>👥</div>
             <div style={{fontWeight:600}}>Nenhum cliente ainda</div>
