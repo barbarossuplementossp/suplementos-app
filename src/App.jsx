@@ -1547,7 +1547,7 @@ function ClientesView({ sales, loadingS, usuarios }) {
 }
 
 // ── ADMIN PANEL (orquestrador) ────────────────────────────────
-function AdminPanel({ onLogout }) {
+function AdminPanel({ onLogout, onConfigSaved }) {
   const isDesktop = useIsDesktop();
   const [products, setProducts] = useState([]);
   const [pedidos, setPedidos] = useState([]);
@@ -1615,7 +1615,14 @@ function AdminPanel({ onLogout }) {
   }
   async function saveConfig() {
     setSavingConfig(true);
-    try { await db.update("configuracoes","default",{alerta_vencimento_dias:config.alerta_vencimento_dias,nome_loja:config.nome_loja,subtitulo:config.subtitulo,logo_url:config.logo_url,header_color1:config.header_color1,header_color2:config.header_color2}); showToast("Configuração salva!"); } catch { showToast("Erro ao salvar","error"); } finally { setSavingConfig(false); }
+    try {
+      await db.update("configuracoes","default",{alerta_vencimento_dias:config.alerta_vencimento_dias,nome_loja:config.nome_loja,subtitulo:config.subtitulo,logo_url:config.logo_url,header_color1:config.header_color1,header_color2:config.header_color2});
+      // Reload config from DB to ensure UI reflects saved values
+      await loadConfig();
+      if (onConfigSaved) onConfigSaved();
+      showToast("Configuração salva! ✅");
+    } catch { showToast("Erro ao salvar","error"); }
+    finally { setSavingConfig(false); }
   }
 
   const alertDays = config.alerta_vencimento_dias;
@@ -1678,19 +1685,27 @@ export default function App() {
   const [loadingProducts, setLoadingProducts] = useState(true);
 
   const [vitrineConfig, setVitrineConfig] = useState({ nome_loja:"Suplementos", subtitulo:"Loja de", logo_url:"", header_color1:"#0f172a", header_color2:"#1e3a5f" });
+  
+  function reloadVitrineConfig() {
+    db.select("configuracoes","id=eq.default").then(c=>{ if(c.length) setVitrineConfig(c[0]); }).catch(()=>{});
+  }
+
   useEffect(()=>{
     db.select("produtos","").then(data=>{ setProducts(data); setLoadingProducts(false); }).catch(()=>setLoadingProducts(false));
-    db.select("configuracoes","id=eq.default").then(c=>{ if(c.length) setVitrineConfig(c[0]); }).catch(()=>{});
+    reloadVitrineConfig();
+    // Reload config when window regains focus (catches admin changes)
+    window.addEventListener("focus", reloadVitrineConfig);
+    return () => window.removeEventListener("focus", reloadVitrineConfig);
   },[]);
 
   function handleLogin(u) { setUser(u); setShowAuth(false); }
   function handleLogout() { saveSession(null); setUser(null); }
 
   if (isAdminRoute()) {
-    if (isAdminDevice()&&user?.role==="admin") return <AdminPanel onLogout={handleLogout}/>;
+    if (isAdminDevice()&&user?.role==="admin") return <AdminPanel onLogout={handleLogout} onConfigSaved={reloadVitrineConfig}/>;
     return <AdminLoginPage onSuccess={u=>setUser(u)}/>;
   }
-  if (user?.role==="admin") return <AdminPanel onLogout={handleLogout}/>;
+  if (user?.role==="admin") return <AdminPanel onLogout={handleLogout} onConfigSaved={reloadVitrineConfig}/>;
 
   return (
     <>
