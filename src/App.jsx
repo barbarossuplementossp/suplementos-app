@@ -193,7 +193,7 @@ function AuthModal({ onClose, onLogin }) {
 }
 
 // ── VITRINE ──────────────────────────────────────────────────
-function Vitrine({ products, loading, user, onLogout, onShowAuth, config }) {
+function Vitrine({ products, loading, user, onLogout, onShowAuth, config: configProp }) {
   const [cart, setCart] = useState([]);
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("Todos");
@@ -202,6 +202,13 @@ function Vitrine({ products, loading, user, onLogout, onShowAuth, config }) {
   const [pedidoFeito, setPedidoFeito] = useState(null);
   const [toast, setToast] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [config, setConfig] = useState(configProp || { nome_loja:"Suplementos", subtitulo:"Loja de", logo_url:"", header_color1:"#0f172a", header_color2:"#1e3a5f" });
+
+  useEffect(()=>{
+    db.select("configuracoes","id=eq.default")
+      .then(c=>{ if(c.length) setConfig(c[0]); })
+      .catch(()=>{});
+  },[]);
 
   const showToast = (msg,type="success") => { setToast({msg,type}); setTimeout(()=>setToast(null),2500); };
   const cartTotal = cart.reduce((s,i)=>s+i.price*i.qty,0);
