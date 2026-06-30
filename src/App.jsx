@@ -1623,12 +1623,33 @@ function AdminPanel({ onLogout, onConfigSaved }) {
   async function saveConfig() {
     setSavingConfig(true);
     try {
-      await db.update("configuracoes","default",{alerta_vencimento_dias:config.alerta_vencimento_dias,nome_loja:config.nome_loja,subtitulo:config.subtitulo,logo_url:config.logo_url,header_color1:config.header_color1,header_color2:config.header_color2});
-      // Reload config from DB to ensure UI reflects saved values
+      const payload = {
+        id: "default",
+        alerta_vencimento_dias: config.alerta_vencimento_dias,
+        nome_loja: config.nome_loja,
+        subtitulo: config.subtitulo || "",
+        logo_url: config.logo_url || "",
+        header_color1: config.header_color1 || "#0f172a",
+        header_color2: config.header_color2 || "#1e3a5f"
+      };
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/configuracoes`, {
+        method: "POST",
+        headers: {
+          apikey: SUPABASE_ANON,
+          Authorization: `Bearer ${SUPABASE_ANON}`,
+          "Content-Type": "application/json",
+          Prefer: "resolution=merge-duplicates,return=representation"
+        },
+        body: JSON.stringify(payload)
+      });
+      if (!r.ok) { const err = await r.text(); throw new Error(err); }
       await loadConfig();
       if (onConfigSaved) onConfigSaved();
       showToast("Configuração salva! ✅");
-    } catch { showToast("Erro ao salvar","error"); }
+    } catch(e) { 
+      console.error("saveConfig error:", e);
+      showToast("Erro ao salvar: " + e.message, "error"); 
+    }
     finally { setSavingConfig(false); }
   }
 
