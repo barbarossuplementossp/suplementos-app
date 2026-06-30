@@ -274,7 +274,7 @@ function Vitrine({ products, loading, user, onLogout, onShowAuth, config }) {
           <div style={{display:"flex",alignItems:"center",gap:12}}>
             {config?.logo_url ? <img src={config.logo_url} alt="logo" style={{width:44,height:44,borderRadius:10,objectFit:"cover"}}/> : <span style={{fontSize:28}}>💪</span>}
             <div>
-              <div style={{fontSize:11,fontWeight:600,letterSpacing:2,color:"rgba(255,255,255,0.5)",textTransform:"uppercase"}}>Loja de</div>
+              {(config?.subtitulo||"")!=="" && <div style={{fontSize:11,fontWeight:600,letterSpacing:2,color:"rgba(255,255,255,0.5)",textTransform:"uppercase"}}>{config?.subtitulo||"Loja de"}</div>}
               <div style={{fontSize:20,fontWeight:800}}>{config?.nome_loja||"Suplementos"}</div>
             </div>
           </div>
@@ -446,7 +446,7 @@ function AdminMobile({ data, actions }) {
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             {config?.logo_url ? <img src={config.logo_url} alt="logo" style={{width:36,height:36,borderRadius:8,objectFit:"cover"}}/> : <span style={{fontSize:22}}>💪</span>}
             <div>
-              <div style={{fontSize:10,fontWeight:600,letterSpacing:2,color:"#94a3b8",textTransform:"uppercase"}}>Admin</div>
+              {(config?.subtitulo||"")!=="" && <div style={{fontSize:10,fontWeight:600,letterSpacing:2,color:"#94a3b8",textTransform:"uppercase"}}>{config?.subtitulo}</div>}
               <div style={{fontSize:18,fontWeight:800}}>{config?.nome_loja||"Suplementos"}</div>
             </div>
           </div>
@@ -557,7 +557,7 @@ function AdminDesktop({ data, actions }) {
           <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
             {config?.logo_url ? <img src={config.logo_url} alt="logo" style={{width:40,height:40,borderRadius:10,objectFit:"cover"}}/> : <span style={{fontSize:28}}>💪</span>}
             <div>
-              <div style={{fontSize:10,fontWeight:700,letterSpacing:2,color:"#475569",textTransform:"uppercase"}}>Admin</div>
+              {(config?.subtitulo||"")!=="" && <div style={{fontSize:10,fontWeight:700,letterSpacing:2,color:"#475569",textTransform:"uppercase"}}>{config?.subtitulo}</div>}
               <div style={{fontSize:18,fontWeight:800,color:"#fff"}}>{config?.nome_loja||"Suplementos"}</div>
             </div>
           </div>
@@ -1234,6 +1234,12 @@ function ConfigView({ config, setConfig, onSave, saving }) {
         </div>
 
         <div style={{marginBottom:14}}>
+          <label style={lb}>Subtítulo (linha acima do nome)</label>
+          <input style={fi} value={config.subtitulo||""} onChange={e=>setConfig(c=>({...c,subtitulo:e.target.value}))} placeholder="Ex: Loja de, Distribuidora de, (deixe vazio para ocultar)"/>
+          <div style={{fontSize:11,color:"#94a3b8",marginTop:4}}>Aparece em letras menores acima do nome. Deixe vazio para não mostrar nada.</div>
+        </div>
+
+        <div style={{marginBottom:14}}>
           <label style={lb}>URL da logo</label>
           <input style={fi} value={config.logo_url||""} onChange={e=>setConfig(c=>({...c,logo_url:e.target.value}))} placeholder="https://... (link de uma imagem)"/>
           <div style={{fontSize:11,color:"#94a3b8",marginTop:4}}>Cole o link de uma imagem (PNG, JPG). Substitui o emoji 💪. Use o site imgbb.com para hospedar grátis.</div>
@@ -1269,7 +1275,7 @@ function ConfigView({ config, setConfig, onSave, saving }) {
           <div style={{marginTop:10,borderRadius:12,padding:"14px 16px",background:`linear-gradient(135deg,${config.header_color1||"#0f172a"} 0%,${config.header_color2||"#1e3a5f"} 100%)`,color:"#fff",display:"flex",alignItems:"center",gap:10}}>
             {config.logo_url ? <img src={config.logo_url} alt="logo" style={{width:36,height:36,borderRadius:8,objectFit:"cover"}} onError={e=>e.target.style.display="none"}/> : <span style={{fontSize:24}}>💪</span>}
             <div>
-              <div style={{fontSize:10,opacity:.6,textTransform:"uppercase",letterSpacing:2}}>Loja de</div>
+              {(config.subtitulo||"")!=="" && <div style={{fontSize:10,opacity:.6,textTransform:"uppercase",letterSpacing:2}}>{config.subtitulo||"Loja de"}</div>}
               <div style={{fontSize:16,fontWeight:800}}>{config.nome_loja||"Suplementos"}</div>
             </div>
           </div>
@@ -1548,7 +1554,7 @@ function AdminPanel({ onLogout }) {
   const [rejeitados, setRejeitados] = useState([]);
   const [sales, setSales] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
-  const [config, setConfig] = useState({ alerta_vencimento_dias:60, nome_loja:'Suplementos', logo_url:'', header_color1:'#0f172a', header_color2:'#1e3a5f' });
+  const [config, setConfig] = useState({ alerta_vencimento_dias:60, nome_loja:'Suplementos', subtitulo:'Loja de', logo_url:'', header_color1:'#0f172a', header_color2:'#1e3a5f' });
   const [loadingP, setLoadingP] = useState(true);
   const [loadingPedidos, setLoadingPedidos] = useState(true);
   const [loadingS, setLoadingS] = useState(true);
@@ -1609,7 +1615,7 @@ function AdminPanel({ onLogout }) {
   }
   async function saveConfig() {
     setSavingConfig(true);
-    try { await db.update("configuracoes","default",{alerta_vencimento_dias:config.alerta_vencimento_dias,nome_loja:config.nome_loja,logo_url:config.logo_url,header_color1:config.header_color1,header_color2:config.header_color2}); showToast("Configuração salva!"); } catch { showToast("Erro","error"); } finally { setSavingConfig(false); }
+    try { await db.update("configuracoes","default",{alerta_vencimento_dias:config.alerta_vencimento_dias,nome_loja:config.nome_loja,subtitulo:config.subtitulo,logo_url:config.logo_url,header_color1:config.header_color1,header_color2:config.header_color2}); showToast("Configuração salva!"); } catch { showToast("Erro ao salvar","error"); } finally { setSavingConfig(false); }
   }
 
   const alertDays = config.alerta_vencimento_dias;
@@ -1671,7 +1677,7 @@ export default function App() {
   const [products, setProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
 
-  const [vitrineConfig, setVitrineConfig] = useState({ nome_loja:"Suplementos", logo_url:"", header_color1:"#0f172a", header_color2:"#1e3a5f" });
+  const [vitrineConfig, setVitrineConfig] = useState({ nome_loja:"Suplementos", subtitulo:"Loja de", logo_url:"", header_color1:"#0f172a", header_color2:"#1e3a5f" });
   useEffect(()=>{
     db.select("produtos","").then(data=>{ setProducts(data); setLoadingProducts(false); }).catch(()=>setLoadingProducts(false));
     db.select("configuracoes","id=eq.default").then(c=>{ if(c.length) setVitrineConfig(c[0]); }).catch(()=>{});
