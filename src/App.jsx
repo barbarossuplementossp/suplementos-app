@@ -9,8 +9,9 @@ const ADMIN_DEVICE_KEY = "supp_auth_device_v2";
 const ADMIN_TOKEN    = "tk_" + btoa(ADMIN_EMAIL + ":" + ADMIN_SENHA).slice(0, 24);
 
 const db = {
-  async select(table, query = "") {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}&order=created_at.desc`, {
+  async select(table, query = "", orderByDate = true) {
+    const order = orderByDate ? "&order=created_at.desc" : "";
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}${order}`, {
       headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` }
     });
     if (!r.ok) throw new Error(await r.text());
@@ -205,7 +206,7 @@ function Vitrine({ products, loading, user, onLogout, onShowAuth, config: config
   const [config, setConfig] = useState(configProp || { nome_loja:"Suplementos", subtitulo:"Loja de", logo_url:"", header_color1:"#0f172a", header_color2:"#1e3a5f" });
 
   useEffect(()=>{
-    db.select("configuracoes","id=eq.default")
+    db.select("configuracoes","id=eq.default",false)
       .then(c=>{ if(c.length) setConfig(c[0]); })
       .catch(()=>{});
   },[]);
@@ -1591,7 +1592,7 @@ function AdminPanel({ onLogout, onConfigSaved }) {
     try { setUsuarios(await db.select("usuarios","select=id,nome,telefone,email")); } catch {}
   },[]);
   const loadConfig = useCallback(async()=>{
-    try { const c=await db.select("configuracoes","id=eq.default"); if(c.length) setConfig(c[0]); } catch {}
+    try { const c=await db.select("configuracoes","id=eq.default",false); if(c.length) setConfig(c[0]); } catch {}
   },[]);
 
   useEffect(()=>{ loadProducts(); loadPedidos(); loadSales(); loadRejeitados(); loadUsuarios(); loadConfig(); },[loadProducts,loadPedidos,loadSales,loadRejeitados,loadUsuarios,loadConfig]);
@@ -1623,14 +1624,15 @@ function AdminPanel({ onLogout, onConfigSaved }) {
   async function saveConfig() {
     setSavingConfig(true);
     try {
+      const validHex = (c) => /^#[0-9a-fA-F]{6}$/.test(c) ? c : null;
       const payload = {
         id: "default",
         alerta_vencimento_dias: config.alerta_vencimento_dias,
-        nome_loja: config.nome_loja,
+        nome_loja: config.nome_loja || "Suplementos",
         subtitulo: config.subtitulo || "",
         logo_url: config.logo_url || "",
-        header_color1: config.header_color1 || "#0f172a",
-        header_color2: config.header_color2 || "#1e3a5f"
+        header_color1: validHex(config.header_color1) || "#0f172a",
+        header_color2: validHex(config.header_color2) || "#1e3a5f"
       };
       const r = await fetch(`${SUPABASE_URL}/rest/v1/configuracoes`, {
         method: "POST",
@@ -1715,7 +1717,7 @@ export default function App() {
   const [vitrineConfig, setVitrineConfig] = useState({ nome_loja:"Suplementos", subtitulo:"Loja de", logo_url:"", header_color1:"#0f172a", header_color2:"#1e3a5f" });
   
   function reloadVitrineConfig() {
-    db.select("configuracoes","id=eq.default").then(c=>{ if(c.length) setVitrineConfig(c[0]); }).catch(()=>{});
+    db.select("configuracoes","id=eq.default",false).then(c=>{ if(c.length) setVitrineConfig(c[0]); }).catch(()=>{});
   }
 
   useEffect(()=>{
