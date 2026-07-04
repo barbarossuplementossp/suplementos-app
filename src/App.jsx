@@ -1,3 +1,4 @@
+// v2.1
 import React, { useState, useEffect, useCallback } from "react";
 
 const SUPABASE_URL   = "https://juqsrwtfwujnievhftgi.supabase.co";
@@ -383,7 +384,7 @@ function Vitrine({ products, loading, user, onLogout, onShowAuth, config: config
                 <span style={{color:"#64748b",fontSize:15}}>Total</span>
                 <span style={{fontWeight:800,fontSize:24,color:"#0f172a"}}>R$ {cartTotal.toFixed(2)}</span>
               </div>
-            </div> 
+            </div>
             <div style={{display:"flex",gap:10}}>
               <button onClick={()=>{setCart([]);setShowCart(false);setPagamento("");}} style={{flex:1,padding:13,borderRadius:12,border:"1px solid #e2e8f0",background:"#fff",cursor:"pointer",fontWeight:600,color:"#ef4444"}}>Limpar</button>
               <button onClick={finalizarPedido} disabled={!pagamento||submitting} style={{flex:2,padding:13,borderRadius:12,border:"none",background:pagamento?"linear-gradient(135deg,#22c55e,#16a34a)":"#e2e8f0",color:pagamento?"#fff":"#94a3b8",fontWeight:800,fontSize:16,cursor:pagamento?"pointer":"not-allowed",opacity:submitting?0.7:1}}>
