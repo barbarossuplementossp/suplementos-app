@@ -1823,9 +1823,6 @@ function AdminPanel({ onLogout, onConfigSaved }) {
   }
 
 
-  const loadConfig = async () => {
-    try { const c=await db.select("configuracoes","id=eq.default",false); if(c.length) setConfig(c[0]); } catch {}
-  };
   async function saveConfig() {
     setSavingConfig(true);
     try {
