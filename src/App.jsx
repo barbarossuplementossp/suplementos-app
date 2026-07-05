@@ -495,7 +495,7 @@ function ProductForm({ initial, onSave, onClose }) {
 // ── ADMIN MOBILE ─────────────────────────────────────────────
 function AdminMobile({ data, actions }) {
   const { products, pedidos, rejeitados, sales, usuarios, config, loadingP, loadingPedidos, loadingS, alertDays, alerts, totalValue, monthRevenue, monthlySales } = data;
-  const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, handleToggleProduct, saveConfig, savingConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast, exportJSON, exportCSV } = actions;
+  const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, handleToggleProduct, saveConfig, savingConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast} = actions;
   const [tab, setTab] = useState("pedidos");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("Todos");
@@ -614,7 +614,7 @@ function AdminMobile({ data, actions }) {
 // ── ADMIN DESKTOP ─────────────────────────────────────────────
 function AdminDesktop({ data, actions }) {
   const { products, pedidos, rejeitados, sales, usuarios, config, loadingP, loadingPedidos, loadingS, alertDays, alerts, totalValue, monthRevenue, monthlySales } = data;
-  const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, handleToggleProduct, saveConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast, savingConfig, exportJSON, exportCSV } = actions;
+  const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, handleToggleProduct, saveConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast, savingConfig} = actions;
   const [tab, setTab] = useState("overview");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("Todos");
@@ -1805,49 +1805,7 @@ function AdminPanel({ onLogout, onConfigSaved }) {
       showToast(product.ativo === false ? "Produto visível na vitrine ✅" : "Produto ocultado da vitrine 👁");
     } catch { showToast("Erro ao alterar visibilidade","error"); }
   }
-  function exportJSON() {
-    const data = {
-      exportDate: new Date().toISOString(),
-      produtos: products,
-      vendas: sales.map(s=>({...s})),
-      clientes: usuarios,
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `backup-suplementos-${new Date().toISOString().slice(0,10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast("Backup JSON exportado! ✅");
-  }
 
-
-  async function saveConfig() {
-    setSavingConfig(true);
-    try {
-      const validHex = (c) => /^#[0-9a-fA-F]{6}$/.test(c) ? c : null;
-      const payload = {
-        id: "default",
-        alerta_vencimento_dias: config.alerta_vencimento_dias,
-        nome_loja: config.nome_loja || "Suplementos",
-        subtitulo: config.subtitulo || "",
-        logo_url: config.logo_url || "",
-        header_color1: validHex(config.header_color1) || "#0f172a",
-        header_color2: validHex(config.header_color2) || "#1e3a5f"
-      };
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/configuracoes`, {
-        method: "POST",
-        headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=representation" },
-        body: JSON.stringify(payload)
-      });
-      if (!r.ok) throw new Error(await r.text());
-      await loadConfig();
-      if (onConfigSaved) onConfigSaved();
-      showToast("Configuração salva! ✅");
-    } catch(e) { showToast("Erro ao salvar: " + e.message, "error"); }
-    finally { setSavingConfig(false); }
-  }
   async function handleBackup() {
     showToast("Gerando backup...", "info");
     try {
@@ -1910,7 +1868,7 @@ function AdminPanel({ onLogout, onConfigSaved }) {
   }
 
 
-  const sharedActions = { confirmarPedido,rejeitarPedido,handleSaveProduct,handleDelete,handleToggleProduct,handleBackup,saveConfig,savingConfig,setConfig,showAddProduct,setShowAddProduct,editProduct,setEditProduct,toast,onLogout,exportJSON,exportCSV };
+  const sharedActions = { confirmarPedido,rejeitarPedido,handleSaveProduct,handleDelete,handleToggleProduct,handleBackup,saveConfig,savingConfig,setConfig,showAddProduct,setShowAddProduct,editProduct,setEditProduct,toast,onLogout};
 
   return (
     <>
