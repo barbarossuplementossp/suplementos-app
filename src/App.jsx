@@ -495,7 +495,7 @@ function ProductForm({ initial, onSave, onClose }) {
 // ── ADMIN MOBILE ─────────────────────────────────────────────
 function AdminMobile({ data, actions }) {
   const { products, pedidos, rejeitados, sales, usuarios, config, loadingP, loadingPedidos, loadingS, alertDays, alerts, totalValue, monthRevenue, monthlySales } = data;
-  const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, handleToggleProduct, saveConfig, savingConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast } = actions;
+  const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, handleToggleProduct, saveConfig, savingConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast, exportJSON, exportCSV } = actions;
   const [tab, setTab] = useState("pedidos");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("Todos");
@@ -604,7 +604,7 @@ function AdminMobile({ data, actions }) {
         {tab==="vendas" && <VendasView sales={sales} loading={loadingS} monthRevenue={monthRevenue} monthlySales={monthlySales} products={products}/>}
         {tab==="clientes" && <ClientesView sales={sales} loadingS={loadingS} usuarios={usuarios}/>}
         {tab==="alertas" && <AlertasView alerts={alerts} alertDays={alertDays} onEdit={p=>{setEditProduct({...p,minQty:p.min_qty,costPrice:p.cost_price,foto_url:p.foto_url||'',descricao:p.descricao||''});setShowAddProduct(true);}}/>}
-        {tab==="config" && <ConfigView config={config} setConfig={setConfig} onSave={saveConfig} saving={savingConfig}/>}
+        {tab==="config" && <ConfigView config={config} setConfig={setConfig} onSave={saveConfig} saving={savingConfig} onBackup={handleBackup}/>}
       </div>
       {toast&&<div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",background:toast.type==="error"?"#ef4444":toast.type==="info"?"#64748b":"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:12,fontWeight:700,fontSize:14,zIndex:300,maxWidth:"90vw",textAlign:"center"}}>{toast.msg}</div>}
     </div>
@@ -614,7 +614,7 @@ function AdminMobile({ data, actions }) {
 // ── ADMIN DESKTOP ─────────────────────────────────────────────
 function AdminDesktop({ data, actions }) {
   const { products, pedidos, rejeitados, sales, usuarios, config, loadingP, loadingPedidos, loadingS, alertDays, alerts, totalValue, monthRevenue, monthlySales } = data;
-  const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, handleToggleProduct, saveConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast, savingConfig } = actions;
+  const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, handleToggleProduct, saveConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast, savingConfig, exportJSON, exportCSV } = actions;
   const [tab, setTab] = useState("overview");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("Todos");
@@ -903,7 +903,7 @@ function AdminDesktop({ data, actions }) {
         {/* CONFIG */}
         {tab==="config" && (
           <div>
-            <ConfigView config={config} setConfig={setConfig} onSave={saveConfig} saving={savingConfig}/>
+            <ConfigView config={config} setConfig={setConfig} onSave={saveConfig} saving={savingConfig} onBackup={handleBackup}/>
           </div>
         )}
       </div>
@@ -1309,7 +1309,7 @@ function AlertasView({ alerts, alertDays, onEdit }) {
   });
 }
 
-function ConfigView({ config, setConfig, onSave, saving }) {
+function ConfigView({ config, setConfig, onSave, saving, onBackup }) {
   const fi = { display:"block",width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid #e2e8f0",fontSize:14,marginTop:5,boxSizing:"border-box",outline:"none",background:"#fff" };
   const lb = { fontSize:13,fontWeight:700,color:"#0f172a",display:"block",marginBottom:4 };
   const section = { background:"#fff",borderRadius:14,padding:20,boxShadow:"0 1px 4px rgba(0,0,0,0.07)",marginBottom:16 };
@@ -1393,6 +1393,17 @@ function ConfigView({ config, setConfig, onSave, saving }) {
       <button onClick={onSave} disabled={saving} style={{width:"100%",padding:13,borderRadius:12,border:"none",background:"#0f172a",color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",opacity:saving?0.7:1}}>
         {saving?"Salvando...":"Salvar configurações"}
       </button>
+    </div>
+
+    {/* Backup */}
+    <div style={section}>
+      <div style={{fontWeight:700,fontSize:15,marginBottom:6,color:"#0f172a"}}>💾 Backup dos Dados</div>
+      <div style={{color:"#64748b",fontSize:13,marginBottom:14}}>Baixa um ZIP com todos os dados em JSON e CSV (compatível com Excel). Inclui produtos, vendas, itens de venda e clientes.</div>
+      <button onClick={onBackup} style={{width:"100%",padding:13,borderRadius:12,border:"none",background:"linear-gradient(135deg,#6366f1,#3b82f6)",color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+        <span style={{fontSize:18}}>📦</span> Baixar backup completo (ZIP)
+      </button>
+    </div>
+      <div style={{fontSize:11,color:"#94a3b8",marginTop:8}}>JSON inclui todos os dados. CSV gera arquivos separados para produtos, vendas e clientes.</div>
     </div>
   );
 }
@@ -1796,6 +1807,59 @@ function AdminPanel({ onLogout, onConfigSaved }) {
       showToast(product.ativo === false ? "Produto visível na vitrine ✅" : "Produto ocultado da vitrine 👁");
     } catch { showToast("Erro ao alterar visibilidade","error"); }
   }
+  function exportJSON() {
+    const data = {
+      exportDate: new Date().toISOString(),
+      produtos: products,
+      vendas: sales.map(s=>({...s})),
+      clientes: usuarios,
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `backup-suplementos-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("Backup JSON exportado! ✅");
+  }
+
+  function exportCSV() {
+    // Produtos CSV
+    const prodHeaders = ["id","name","category","flavor","qty","min_qty","unit","validity","price","cost_price","ativo","foto_url","descricao"];
+    const prodRows = products.map(p=>prodHeaders.map(h=>JSON.stringify(p[h]??"")));
+    const prodCSV = [prodHeaders, ...prodRows].map(r=>r.join(",")).join("
+");
+
+    // Vendas CSV
+    const vendaHeaders = ["id","cliente","total","pagamento","status","created_at"];
+    const vendaRows = sales.map(s=>vendaHeaders.map(h=>JSON.stringify(s[h]??"")));
+    const vendaCSV = [vendaHeaders, ...vendaRows].map(r=>r.join(",")).join("
+");
+
+    // Clientes CSV
+    const clienteHeaders = ["id","nome","telefone","email","created_at"];
+    const clienteRows = usuarios.map(u=>clienteHeaders.map(h=>JSON.stringify(u[h]??"")));
+    const clienteCSV = [clienteHeaders, ...clienteRows].map(r=>r.join(",")).join("
+");
+
+    // Download each
+    [
+      {name:"produtos", csv:prodCSV},
+      {name:"vendas", csv:vendaCSV},
+      {name:"clientes", csv:clienteCSV},
+    ].forEach(({name, csv})=>{
+      const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `backup-${name}-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+    showToast("Backup CSV exportado! (3 arquivos) ✅");
+  }
+
   async function saveConfig() {
     setSavingConfig(true);
     try {
@@ -1838,7 +1902,69 @@ function AdminPanel({ onLogout, onConfigSaved }) {
   const monthRevenue = monthlySales.reduce((s,v)=>s+Number(v.total),0);
 
   const sharedData = { products,pedidos,rejeitados,sales,usuarios,config,loadingP,loadingPedidos,loadingS,alertDays,alerts,totalValue,monthRevenue,monthlySales };
-  const sharedActions = { confirmarPedido,rejeitarPedido,handleSaveProduct,handleDelete,handleToggleProduct,saveConfig,savingConfig,setConfig,showAddProduct,setShowAddProduct,editProduct,setEditProduct,toast,onLogout };
+
+  async function handleBackup() {
+    showToast("Gerando backup...", "info");
+    try {
+      const [prods, vendasAll, vItens, usuarios_all] = await Promise.all([
+        db.select("produtos", "", false).catch(()=>[]),
+        db.select("vendas", "select=*,venda_itens(*)", false).catch(()=>[]),
+        db.select("venda_itens", "", false).catch(()=>[]),
+        db.select("usuarios", "select=id,nome,telefone,email,created_at", false).catch(()=>[]),
+      ]);
+
+      const now = new Date();
+      const dateStr = now.toLocaleDateString("pt-BR").replace(/[/]/g,"-");
+      const timeStr = now.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}).replace(":","-");
+      const prefix = "backup-"+dateStr+"_"+timeStr;
+
+      const jsonData = { gerado_em: now.toISOString(), produtos: prods, vendas: vendasAll, clientes: usuarios_all };
+      const jsonStr = JSON.stringify(jsonData, null, 2);
+
+      function toCSV(arr) {
+        if (!arr.length) return "";
+        const keys = Object.keys(arr[0]);
+        const rows = arr.map(row => keys.map(k => {
+          const v = row[k];
+          if (v === null || v === undefined) return "";
+          const s = String(v).replace(/"/g, '""');
+          return (s.includes(";") || s.includes('"') || s.includes("\n")) ? '"'+s+'"' : s;
+        }).join(";"));
+        return [keys.join(";"), ...rows].join("\n");
+      }
+
+      const prodCSV = toCSV(prods.map(p=>({ Nome:p.name, Sabor:p.flavor, Categoria:p.category, Quantidade:p.qty, Minimo:p.min_qty, Unidade:p.unit, Validade:p.validity||"", Preco_Venda:p.price, Preco_Custo:p.cost_price, Ativo:p.ativo?"Sim":"Nao", Foto_URL:p.foto_url||"", Descricao:p.descricao||"" })));
+      const vendasCSV = toCSV(vendasAll.map(v=>({ ID:v.id, Cliente:v.cliente, Total:v.total, Pagamento:v.pagamento, Status:v.status, Data:new Date(v.created_at).toLocaleDateString("pt-BR") })));
+      const itensCSV = toCSV(vItens.map(i=>({ Venda_ID:i.venda_id, Produto:i.product_name, Sabor:i.flavor, Quantidade:i.qty, Preco_Unit:i.price, Total:+(i.price*i.qty).toFixed(2) })));
+      const clientesCSV = toCSV(usuarios_all.map(u=>({ Nome:u.nome, Telefone:u.telefone, Email:u.email, Cadastro:new Date(u.created_at).toLocaleDateString("pt-BR") })));
+
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+      document.head.appendChild(script);
+      await new Promise(res => { script.onload = res; });
+
+      const zip = new window.JSZip();
+      zip.file(prefix+".json", jsonStr);
+      const csv = zip.folder("csv");
+      csv.file("produtos.csv", "\uFEFF" + prodCSV);
+      csv.file("vendas.csv", "\uFEFF" + vendasCSV);
+      csv.file("itens_venda.csv", "\uFEFF" + itensCSV);
+      csv.file("clientes.csv", "\uFEFF" + clientesCSV);
+
+      const blob = await zip.generateAsync({type:"blob"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = prefix+".zip";
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("Backup baixado com sucesso! ✅");
+    } catch(e) {
+      console.error(e);
+      showToast("Erro ao gerar backup", "error");
+    }
+  }
+
+  const sharedActions = { confirmarPedido,rejeitarPedido,handleSaveProduct,handleDelete,handleToggleProduct,handleBackup,saveConfig,savingConfig,setConfig,showAddProduct,setShowAddProduct,editProduct,setEditProduct,toast,onLogout,exportJSON,exportCSV };
 
   return (
     <>
