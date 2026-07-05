@@ -1780,7 +1780,7 @@ function AdminPanel({ onLogout, onConfigSaved }) {
   }
   async function handleSaveProduct(data) {
     try {
-      if (editProduct) { await db.update("produtos",editProduct.id,{name:data.name,category:data.category,flavor:data.flavor,qty:data.qty,min_qty:data.minQty,unit:data.unit,validity:data.validity||null,price:data.price,cost_price:data.costPrice}); showToast("Produto atualizado!"); }
+      if (editProduct) { await db.update("produtos",editProduct.id,{name:data.name,category:data.category,flavor:data.flavor,qty:data.qty,min_qty:data.minQty,unit:data.unit,validity:data.validity||null,price:data.price,cost_price:data.costPrice,foto_url:data.foto_url||"",descricao:data.descricao||""}); showToast("Produto atualizado!"); }
       else { await db.insert("produtos",{name:data.name,category:data.category,flavor:data.flavor,qty:data.qty,min_qty:data.minQty,unit:data.unit,validity:data.validity||null,price:data.price,cost_price:data.costPrice}); showToast("Produto adicionado!"); }
       await loadProducts();
     } catch { showToast("Erro ao salvar","error"); }
