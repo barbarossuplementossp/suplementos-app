@@ -204,6 +204,7 @@ function Vitrine({ products, loading, user, onLogout, onShowAuth, config: config
   const [pedidoFeito, setPedidoFeito] = useState(null);
   const [toast, setToast] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [popupProduct, setPopupProduct] = useState(null);
   const [config, setConfig] = useState(configProp || { nome_loja:"Suplementos", subtitulo:"Loja de", logo_url:"", header_color1:"#0f172a", header_color2:"#1e3a5f" });
 
   useEffect(()=>{
@@ -309,8 +310,10 @@ function Vitrine({ products, loading, user, onLogout, onShowAuth, config: config
             {filtered.map(p=>{
               const inCart=cartQty(p.id),available=p.qty-inCart,sold_out=p.qty===0,maxed=inCart>=p.qty;
               return (
-                <div key={p.id} style={{background:sold_out?"#f8fafc":"#fff",borderRadius:14,boxShadow:"0 1px 4px rgba(0,0,0,0.08)",overflow:"hidden",opacity:sold_out?0.6:1,border:inCart>0?"2px solid #22c55e":"2px solid transparent",display:"flex",flexDirection:"column"}}>
-                  <div style={{padding:"14px 14px 10px",flex:1}}>
+                <div key={p.id} style={{background:sold_out?"#f8fafc":"#fff",borderRadius:14,boxShadow:"0 1px 4px rgba(0,0,0,0.08)",overflow:"hidden",opacity:sold_out?0.6:1,border:inCart>0?"2px solid #22c55e":"2px solid transparent",display:"flex",flexDirection:"column",cursor:"pointer"}}
+                  onClick={e=>{ if(e.target.closest("button")) return; setPopupProduct(p); }}>
+                  {p.foto_url && <img src={p.foto_url} alt={p.name} style={{width:"100%",height:120,objectFit:"cover"}} onError={e=>e.target.style.display="none"}/>}
+                  <div style={{padding:"12px 14px 10px",flex:1}}>
                     <div style={{fontSize:13,fontWeight:800,lineHeight:1.3,color:"#0f172a",marginBottom:3,minHeight:34}}>{p.name}</div>
                     <div style={{fontSize:12,color:"#6366f1",fontWeight:600}}>{p.flavor}</div>
                     <div style={{fontSize:17,fontWeight:800,color:"#0f172a",marginTop:8}}>R$ {Number(p.price).toFixed(2).replace(".",",")}</div>
@@ -395,13 +398,58 @@ function Vitrine({ products, loading, user, onLogout, onShowAuth, config: config
         </div>
       )}
       {toast && <div style={{position:"fixed",bottom:88,left:"50%",transform:"translateX(-50%)",background:toast.type==="error"?"#ef4444":"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:12,fontWeight:700,fontSize:14,zIndex:300,maxWidth:"90vw",textAlign:"center"}}>{toast.msg}</div>}
+
+      {/* POPUP DO PRODUTO */}
+      {popupProduct && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={()=>setPopupProduct(null)}>
+          <div style={{background:"#fff",borderRadius:20,width:"100%",maxWidth:440,maxHeight:"85vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.3)"}} onClick={e=>e.stopPropagation()}>
+            {popupProduct.foto_url && (
+              <div style={{position:"relative"}}>
+                <img src={popupProduct.foto_url} alt={popupProduct.name} style={{width:"100%",height:240,objectFit:"cover",borderRadius:"20px 20px 0 0"}} onError={e=>e.target.style.display="none"}/>
+                <button onClick={()=>setPopupProduct(null)} style={{position:"absolute",top:12,right:12,background:"rgba(0,0,0,0.5)",border:"none",borderRadius:"50%",width:32,height:32,color:"#fff",fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+              </div>
+            )}
+            <div style={{padding:20}}>
+              {!popupProduct.foto_url && (
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                  <div/>
+                  <button onClick={()=>setPopupProduct(null)} style={{background:"#f1f5f9",border:"none",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:15}}>✕</button>
+                </div>
+              )}
+              <div style={{fontSize:20,fontWeight:800,color:"#0f172a",marginBottom:4}}>{popupProduct.name}</div>
+              <div style={{fontSize:14,color:"#6366f1",fontWeight:600,marginBottom:4}}>{popupProduct.flavor}</div>
+              <div style={{fontSize:11,color:"#94a3b8",marginBottom:16}}>{popupProduct.category}</div>
+              {popupProduct.descricao && (
+                <div style={{background:"#f8fafc",borderRadius:10,padding:"12px 14px",fontSize:14,color:"#475569",lineHeight:1.6,marginBottom:16,whiteSpace:"pre-wrap"}}>{popupProduct.descricao}</div>
+              )}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,paddingTop:12,borderTop:"1px solid #f1f5f9"}}>
+                <div style={{fontSize:24,fontWeight:800,color:"#0f172a"}}>R$ {Number(popupProduct.price).toFixed(2).replace(".",",")}</div>
+                <div style={{fontSize:13,color:popupProduct.qty===0?"#ef4444":popupProduct.qty<=popupProduct.min_qty?"#d97706":"#64748b",fontWeight:600}}>
+                  {popupProduct.qty===0?"Sem estoque":popupProduct.qty<=popupProduct.min_qty?`⚠ Só ${popupProduct.qty-cartQty(popupProduct.id)} restantes`:`${popupProduct.qty-cartQty(popupProduct.id)} disponíveis`}
+                </div>
+              </div>
+              {cartQty(popupProduct.id)===0 ? (
+                <button disabled={popupProduct.qty===0} onClick={()=>{addToCart(popupProduct);setPopupProduct(null);}} style={{width:"100%",padding:"13px 0",borderRadius:12,border:"none",fontWeight:700,fontSize:15,cursor:popupProduct.qty===0?"not-allowed":"pointer",background:popupProduct.qty===0?"#e2e8f0":"#0f172a",color:popupProduct.qty===0?"#94a3b8":"#fff"}}>
+                  {popupProduct.qty===0?"Indisponível":"Adicionar ao carrinho"}
+                </button>
+              ) : (
+                <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:16,background:"#f1f5f9",borderRadius:12,padding:"10px 0"}}>
+                  <button onClick={()=>removeFromCart(popupProduct.id)} style={{width:36,height:36,borderRadius:8,border:"none",background:"#fff",fontSize:20,cursor:"pointer",fontWeight:800,color:"#ef4444"}}>−</button>
+                  <span style={{fontWeight:800,fontSize:18}}>{cartQty(popupProduct.id)}</span>
+                  <button onClick={()=>addToCart(popupProduct)} disabled={cartQty(popupProduct.id)>=popupProduct.qty} style={{width:36,height:36,borderRadius:8,border:"none",background:"#fff",fontSize:20,cursor:"pointer",fontWeight:800,color:"#22c55e"}}>+</button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ── PRODUCT FORM (shared mobile+desktop) ─────────────────────
 function ProductForm({ initial, onSave, onClose }) {
-  const [form, setForm] = useState({name:initial?.name||"",category:initial?.category||CATEGORIES[0],flavor:initial?.flavor||"",qty:initial?.qty??1,minQty:initial?.minQty??2,unit:initial?.unit||"un",validity:initial?.validity||"",price:initial?.price??"",costPrice:initial?.costPrice??0});
+  const [form, setForm] = useState({name:initial?.name||"",category:initial?.category||CATEGORIES[0],flavor:initial?.flavor||"",qty:initial?.qty??1,minQty:initial?.minQty??2,unit:initial?.unit||"un",validity:initial?.validity||"",price:initial?.price??"",costPrice:initial?.costPrice??0,foto_url:initial?.foto_url||"",descricao:initial?.descricao||""});
   const set=(k,v)=>setForm(f=>({...f,[k]:v}));
   const fi={display:"block",width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid #e2e8f0",fontSize:15,marginTop:5,boxSizing:"border-box",background:"#fff",outline:"none"};
   const lb={fontSize:13,fontWeight:600,color:"#475569",display:"block"};
@@ -425,7 +473,16 @@ function ProductForm({ initial, onSave, onClose }) {
           <div><label style={lb}>Preço de custo</label><input style={fi} type="number" value={form.costPrice} onChange={e=>set("costPrice",+e.target.value)}/></div>
         </div>
         {margin && <div style={{background:"#d1fae5",borderRadius:10,padding:"8px 14px",fontSize:13,fontWeight:700,color:"#065f46",marginBottom:12}}>Margem de lucro: {margin}%</div>}
-        <div style={{marginBottom:20}}><label style={lb}>Validade</label><input style={fi} type="date" value={form.validity} onChange={e=>set("validity",e.target.value)}/></div>
+        <div style={{marginBottom:12}}><label style={lb}>Validade</label><input style={fi} type="date" value={form.validity} onChange={e=>set("validity",e.target.value)}/></div>
+        <div style={{marginBottom:12}}>
+          <label style={lb}>URL da foto do produto</label>
+          <input style={fi} value={form.foto_url} onChange={e=>set("foto_url",e.target.value)} placeholder="https://i.imgur.com/... (link direto da imagem)"/>
+          {form.foto_url && <img src={form.foto_url} alt="preview" style={{width:60,height:60,objectFit:"cover",borderRadius:8,marginTop:6,border:"2px solid #e2e8f0"}} onError={e=>e.target.style.display="none"}/>}
+        </div>
+        <div style={{marginBottom:20}}>
+          <label style={lb}>Descrição do produto</label>
+          <textarea style={{...fi,minHeight:80,resize:"vertical"}} value={form.descricao} onChange={e=>set("descricao",e.target.value)} placeholder="Ingredientes, modo de uso, informações nutricionais..."/>
+        </div>
         <div style={{display:"flex",gap:10}}>
           <button onClick={onClose} style={{flex:1,padding:12,borderRadius:10,border:"1px solid #e2e8f0",background:"#fff",cursor:"pointer",fontWeight:600}}>Cancelar</button>
           <button onClick={()=>{if(!form.name)return alert("Informe o nome");onSave(form);}} style={{flex:2,padding:12,borderRadius:10,border:"none",background:"#3b82f6",color:"#fff",fontWeight:800,fontSize:16,cursor:"pointer"}}>{initial?"Salvar":"Adicionar"}</button>
@@ -535,7 +592,7 @@ function AdminMobile({ data, actions }) {
                     </div>
                   </div>
                   <div style={{display:"flex",gap:8,marginTop:10}}>
-                    <button onClick={()=>{setEditProduct({...p,minQty:p.min_qty,costPrice:p.cost_price});setShowAddProduct(true);}} style={{flex:1,background:"#f1f5f9",border:"none",borderRadius:8,padding:"8px 0",cursor:"pointer",fontSize:13,fontWeight:600}}>✏️ Editar</button>
+                    <button onClick={()=>{setEditProduct({...p,minQty:p.min_qty,costPrice:p.cost_price,foto_url:p.foto_url||'',descricao:p.descricao||''});setShowAddProduct(true);}} style={{flex:1,background:"#f1f5f9",border:"none",borderRadius:8,padding:"8px 0",cursor:"pointer",fontSize:13,fontWeight:600}}>✏️ Editar</button>
                     <button onClick={()=>handleDelete(p.id)} style={{background:"#fff0f0",border:"none",borderRadius:8,padding:"8px 14px",cursor:"pointer"}}>🗑</button>
                   </div>
                 </div>
@@ -546,7 +603,7 @@ function AdminMobile({ data, actions }) {
         {tab==="vitrine" && <AdminVitrineView products={products} onToggle={handleToggleProduct}/>}
         {tab==="vendas" && <VendasView sales={sales} loading={loadingS} monthRevenue={monthRevenue} monthlySales={monthlySales} products={products}/>}
         {tab==="clientes" && <ClientesView sales={sales} loadingS={loadingS} usuarios={usuarios}/>}
-        {tab==="alertas" && <AlertasView alerts={alerts} alertDays={alertDays} onEdit={p=>{setEditProduct({...p,minQty:p.min_qty,costPrice:p.cost_price});setShowAddProduct(true);}}/>}
+        {tab==="alertas" && <AlertasView alerts={alerts} alertDays={alertDays} onEdit={p=>{setEditProduct({...p,minQty:p.min_qty,costPrice:p.cost_price,foto_url:p.foto_url||'',descricao:p.descricao||''});setShowAddProduct(true);}}/>}
         {tab==="config" && <ConfigView config={config} setConfig={setConfig} onSave={saveConfig} saving={savingConfig}/>}
       </div>
       {toast&&<div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",background:toast.type==="error"?"#ef4444":toast.type==="info"?"#64748b":"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:12,fontWeight:700,fontSize:14,zIndex:300,maxWidth:"90vw",textAlign:"center"}}>{toast.msg}</div>}
@@ -693,7 +750,7 @@ function AdminDesktop({ data, actions }) {
                         {p.qty<=p.min_qty&&<div style={{fontSize:11,color:"#ef4444",fontWeight:600}}>{p.qty===0?"Sem estoque":`Baixo: ${p.qty}`}</div>}
                         {p.validity&&days<=alertDays&&<div style={{fontSize:11,color:"#d97706",fontWeight:600}}>{days<0?"Vencido":`Vence em ${days}d`}</div>}
                       </div>
-                      <button onClick={()=>{setEditProduct({...p,minQty:p.min_qty,costPrice:p.cost_price});setShowAddProduct(true);}} style={{background:"#f1f5f9",border:"none",borderRadius:6,padding:"4px 10px",fontSize:12,cursor:"pointer",fontWeight:600}}>Editar</button>
+                      <button onClick={()=>{setEditProduct({...p,minQty:p.min_qty,costPrice:p.cost_price,foto_url:p.foto_url||'',descricao:p.descricao||''});setShowAddProduct(true);}} style={{background:"#f1f5f9",border:"none",borderRadius:6,padding:"4px 10px",fontSize:12,cursor:"pointer",fontWeight:600}}>Editar</button>
                     </div>
                   );
                 })}
@@ -829,7 +886,7 @@ function AdminDesktop({ data, actions }) {
                       <div style={{fontWeight:700,fontSize:15}}>{p.name} <span style={{color:"#6366f1"}}>({p.flavor})</span></div>
                       {p.qty<=p.min_qty&&<div style={{color:p.qty===0?"#ef4444":"#d97706",fontSize:13,marginTop:4,fontWeight:600}}>{p.qty===0?"🚨 Sem estoque!":`⚠ Estoque baixo: ${p.qty} (mín. ${p.min_qty})`}</div>}
                       {p.validity&&days<=alertDays&&<div style={{color:days<0?"#ef4444":"#d97706",fontSize:13,marginTop:4,fontWeight:600}}>{days<0?"🚨 Produto vencido!":`⚠ Vence em ${days} dias — considere uma promoção!`}</div>}
-                      <button onClick={()=>{setEditProduct({...p,minQty:p.min_qty,costPrice:p.cost_price});setShowAddProduct(true);}} style={{marginTop:12,background:"#f1f5f9",border:"none",borderRadius:8,padding:"7px 14px",fontSize:13,cursor:"pointer",fontWeight:600}}>Editar produto</button>
+                      <button onClick={()=>{setEditProduct({...p,minQty:p.min_qty,costPrice:p.cost_price,foto_url:p.foto_url||'',descricao:p.descricao||''});setShowAddProduct(true);}} style={{marginTop:12,background:"#f1f5f9",border:"none",borderRadius:8,padding:"7px 14px",fontSize:13,cursor:"pointer",fontWeight:600}}>Editar produto</button>
                     </div>
                   );
                 })}
