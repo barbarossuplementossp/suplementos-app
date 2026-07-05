@@ -1789,6 +1789,13 @@ function AdminPanel({ onLogout, onConfigSaved }) {
   async function handleDelete(id) {
     try { await db.delete("produtos",id); await loadProducts(); showToast("Removido.","info"); } catch { showToast("Erro","error"); }
   }
+  async function handleToggleProduct(product) {
+    try {
+      await db.update("produtos", product.id, { ativo: product.ativo === false ? true : false });
+      await loadProducts();
+      showToast(product.ativo === false ? "Produto visível na vitrine ✅" : "Produto ocultado da vitrine 👁");
+    } catch { showToast("Erro ao alterar visibilidade","error"); }
+  }
   async function saveConfig() {
     setSavingConfig(true);
     try {
