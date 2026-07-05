@@ -1806,6 +1806,20 @@ function AdminPanel({ onLogout, onConfigSaved }) {
     } catch { showToast("Erro ao alterar visibilidade","error"); }
   }
 
+  async function saveConfig() {
+    setSavingConfig(true);
+    try {
+      const validHex = (c) => /^#[0-9a-fA-F]{6}$/.test(c) ? c : null;
+      const payload = { id:"default", alerta_vencimento_dias:config.alerta_vencimento_dias, nome_loja:config.nome_loja||"Suplementos", subtitulo:config.subtitulo||"", logo_url:config.logo_url||"", header_color1:validHex(config.header_color1)||"#0f172a", header_color2:validHex(config.header_color2)||"#1e3a5f" };
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/configuracoes`, { method:"POST", headers:{ apikey:SUPABASE_ANON, Authorization:`Bearer ${SUPABASE_ANON}`, "Content-Type":"application/json", Prefer:"resolution=merge-duplicates,return=representation" }, body:JSON.stringify(payload) });
+      if (!r.ok) throw new Error(await r.text());
+      const c = await db.select("configuracoes","id=eq.default",false);
+      if (c.length) setConfig(c[0]);
+      if (onConfigSaved) onConfigSaved();
+      showToast("Configuração salva! ✅");
+    } catch(e) { showToast("Erro ao salvar: "+e.message,"error"); }
+    finally { setSavingConfig(false); }
+  }
   async function handleBackup() {
     showToast("Gerando backup...", "info");
     try {
