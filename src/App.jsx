@@ -1393,17 +1393,15 @@ function ConfigView({ config, setConfig, onSave, saving, onBackup }) {
       <button onClick={onSave} disabled={saving} style={{width:"100%",padding:13,borderRadius:12,border:"none",background:"#0f172a",color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",opacity:saving?0.7:1}}>
         {saving?"Salvando...":"Salvar configurações"}
       </button>
-    </div>
 
-    {/* Backup */}
-    <div style={section}>
-      <div style={{fontWeight:700,fontSize:15,marginBottom:6,color:"#0f172a"}}>💾 Backup dos Dados</div>
-      <div style={{color:"#64748b",fontSize:13,marginBottom:14}}>Baixa um ZIP com todos os dados em JSON e CSV (compatível com Excel). Inclui produtos, vendas, itens de venda e clientes.</div>
-      <button onClick={onBackup} style={{width:"100%",padding:13,borderRadius:12,border:"none",background:"linear-gradient(135deg,#6366f1,#3b82f6)",color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-        <span style={{fontSize:18}}>📦</span> Baixar backup completo (ZIP)
-      </button>
-    </div>
-      <div style={{fontSize:11,color:"#94a3b8",marginTop:8}}>JSON inclui todos os dados. CSV gera arquivos separados para produtos, vendas e clientes.</div>
+      {/* Backup */}
+      <div style={section}>
+        <div style={{fontWeight:700,fontSize:15,marginBottom:6,color:"#0f172a"}}>💾 Backup dos Dados</div>
+        <div style={{color:"#64748b",fontSize:13,marginBottom:14}}>Baixa um ZIP com todos os dados em JSON e CSV (compatível com Excel). Inclui produtos, vendas, itens de venda e clientes.</div>
+        <button onClick={onBackup} style={{width:"100%",padding:13,borderRadius:12,border:"none",background:"linear-gradient(135deg,#6366f1,#3b82f6)",color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+          <span style={{fontSize:18}}>📦</span> Baixar backup completo (ZIP)
+        </button>
+      </div>
     </div>
   );
 }
@@ -1906,7 +1904,7 @@ function AdminPanel({ onLogout, onConfigSaved }) {
   async function handleBackup() {
     showToast("Gerando backup...", "info");
     try {
-      const [prods, vendasAll, vItens, usuarios_all] = await Promise.all([
+      const [prods, vendasAll, vItens, clientes] = await Promise.all([
         db.select("produtos", "", false).catch(()=>[]),
         db.select("vendas", "select=*,venda_itens(*)", false).catch(()=>[]),
         db.select("venda_itens", "", false).catch(()=>[]),
@@ -1914,29 +1912,28 @@ function AdminPanel({ onLogout, onConfigSaved }) {
       ]);
 
       const now = new Date();
-      const dateStr = now.toLocaleDateString("pt-BR").replace(/[/]/g,"-");
-      const timeStr = now.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}).replace(":","-");
-      const prefix = "backup-"+dateStr+"_"+timeStr;
+      const d = now.toLocaleDateString("pt-BR").replace(/[/]/g,"-");
+      const t = now.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}).replace(":","-");
+      const prefix = "backup-"+d+"_"+t;
 
-      const jsonData = { gerado_em: now.toISOString(), produtos: prods, vendas: vendasAll, clientes: usuarios_all };
-      const jsonStr = JSON.stringify(jsonData, null, 2);
+      const jsonStr = JSON.stringify({ gerado_em: now.toISOString(), produtos: prods, vendas: vendasAll, clientes }, null, 2);
 
-      function toCSV(arr) {
-        if (!arr.length) return "";
-        const keys = Object.keys(arr[0]);
-        const rows = arr.map(row => keys.map(k => {
-          const v = row[k];
+      function csvRow(obj) {
+        return Object.values(obj).map(v => {
           if (v === null || v === undefined) return "";
           const s = String(v).replace(/"/g, '""');
-          return (s.includes(";") || s.includes('"') || s.includes("\n")) ? '"'+s+'"' : s;
-        }).join(";"));
-        return [keys.join(";"), ...rows].join("\n");
+          return (s.indexOf(";") >= 0 || s.indexOf('"') >= 0) ? '"' + s + '"' : s;
+        }).join(";");
+      }
+      function toCSV(arr) {
+        if (!arr.length) return "";
+        return [Object.keys(arr[0]).join(";"), ...arr.map(csvRow)].join("\r\n");
       }
 
-      const prodCSV = toCSV(prods.map(p=>({ Nome:p.name, Sabor:p.flavor, Categoria:p.category, Quantidade:p.qty, Minimo:p.min_qty, Unidade:p.unit, Validade:p.validity||"", Preco_Venda:p.price, Preco_Custo:p.cost_price, Ativo:p.ativo?"Sim":"Nao", Foto_URL:p.foto_url||"", Descricao:p.descricao||"" })));
-      const vendasCSV = toCSV(vendasAll.map(v=>({ ID:v.id, Cliente:v.cliente, Total:v.total, Pagamento:v.pagamento, Status:v.status, Data:new Date(v.created_at).toLocaleDateString("pt-BR") })));
-      const itensCSV = toCSV(vItens.map(i=>({ Venda_ID:i.venda_id, Produto:i.product_name, Sabor:i.flavor, Quantidade:i.qty, Preco_Unit:i.price, Total:+(i.price*i.qty).toFixed(2) })));
-      const clientesCSV = toCSV(usuarios_all.map(u=>({ Nome:u.nome, Telefone:u.telefone, Email:u.email, Cadastro:new Date(u.created_at).toLocaleDateString("pt-BR") })));
+      const prodCSV = toCSV(prods.map(p=>({Nome:p.name,Sabor:p.flavor,Categoria:p.category,Qtd:p.qty,Min:p.min_qty,Unidade:p.unit,Validade:p.validity||"",Venda:p.price,Custo:p.cost_price,Ativo:p.ativo?"Sim":"Nao"})));
+      const vendasCSV = toCSV(vendasAll.map(v=>({ID:v.id,Cliente:v.cliente,Total:v.total,Pagamento:v.pagamento,Status:v.status,Data:new Date(v.created_at).toLocaleDateString("pt-BR")})));
+      const itensCSV = toCSV(vItens.map(i=>({VendaID:i.venda_id,Produto:i.product_name,Sabor:i.flavor,Qtd:i.qty,Preco:i.price})));
+      const clientesCSV = toCSV(clientes.map(u=>({Nome:u.nome,Telefone:u.telefone,Email:u.email,Cadastro:new Date(u.created_at).toLocaleDateString("pt-BR")})));
 
       const script = document.createElement("script");
       script.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
@@ -1945,24 +1942,26 @@ function AdminPanel({ onLogout, onConfigSaved }) {
 
       const zip = new window.JSZip();
       zip.file(prefix+".json", jsonStr);
-      const csv = zip.folder("csv");
-      csv.file("produtos.csv", "\uFEFF" + prodCSV);
-      csv.file("vendas.csv", "\uFEFF" + vendasCSV);
-      csv.file("itens_venda.csv", "\uFEFF" + itensCSV);
-      csv.file("clientes.csv", "\uFEFF" + clientesCSV);
+      const csvFolder = zip.folder("csv");
+      csvFolder.file("produtos.csv", prodCSV);
+      csvFolder.file("vendas.csv", vendasCSV);
+      csvFolder.file("itens_venda.csv", itensCSV);
+      csvFolder.file("clientes.csv", clientesCSV);
 
       const blob = await zip.generateAsync({type:"blob"});
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = prefix+".zip";
+      a.href = url;
+      a.download = prefix+".zip";
       a.click();
       URL.revokeObjectURL(url);
-      showToast("Backup baixado com sucesso! ✅");
+      showToast("Backup baixado! ✅");
     } catch(e) {
       console.error(e);
       showToast("Erro ao gerar backup", "error");
     }
   }
+
 
   const sharedActions = { confirmarPedido,rejeitarPedido,handleSaveProduct,handleDelete,handleToggleProduct,handleBackup,saveConfig,savingConfig,setConfig,showAddProduct,setShowAddProduct,editProduct,setEditProduct,toast,onLogout,exportJSON,exportCSV };
 
