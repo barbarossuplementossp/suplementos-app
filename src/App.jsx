@@ -1882,7 +1882,15 @@ function AdminPanel({ onLogout, onConfigSaved }) {
   }
 
 
-  const sharedActions = { confirmarPedido,rejeitarPedido,handleSaveProduct,handleDelete,handleToggleProduct,handleBackup,saveConfig,savingConfig,setConfig,showAddProduct,setShowAddProduct,editProduct,setEditProduct,toast,onLogout};
+  const alertDays = config.alerta_vencimento_dias || 60;
+  const alerts = products.filter(p=>p.qty<=p.min_qty||(p.validity&&daysUntil(p.validity)<=alertDays));
+  const totalValue = products.reduce((s,p)=>s+p.qty*Number(p.price),0);
+  const monthStr = new Date().toISOString().slice(0,7);
+  const monthlySales = sales.filter(s=>s.created_at?.startsWith(monthStr));
+  const monthRevenue = monthlySales.reduce((s,v)=>s+Number(v.total),0);
+
+  const sharedData = { products,pedidos,rejeitados,sales,usuarios,config,loadingP,loadingPedidos,loadingS,alertDays,alerts,totalValue,monthRevenue,monthlySales };
+  const sharedActions = { confirmarPedido,rejeitarPedido,handleSaveProduct,handleDelete,handleToggleProduct,handleBackup,saveConfig,savingConfig,setConfig,showAddProduct,setShowAddProduct,editProduct,setEditProduct,toast,onLogout };
 
   return (
     <>
