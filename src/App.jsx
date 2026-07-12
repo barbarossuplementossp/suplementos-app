@@ -242,7 +242,8 @@ function Vitrine({ products, loading, user, onLogout, onShowAuth, config: config
   function abrirWhatsApp() {
     if (!pedidoFeito) return;
     const itens = pedidoFeito.cart.map(i=>`• ${i.productName} (${i.flavor}) x${i.qty} — R$ ${(i.price*i.qty).toFixed(2)}`).join("\n");
-    const msg = `Olá! Gostaria de fazer um pedido 🛒\n\n*Cliente:* ${user.nome}\n*Telefone:* ${user.telefone||"-"}\n\n*Itens:*\n${itens}\n\n*Total:* R$ ${pedidoFeito.total.toFixed(2)}\n*Pagamento:* ${pedidoFeito.pagamento}`;
+    const numeroStr = pedidoFeito.numero ? `*Pedido:* #${String(pedidoFeito.numero).padStart(3,"0")}\n` : "";
+    const msg = `Olá! Gostaria de fazer um pedido 🛒\n\n${numeroStr}*Cliente:* ${user.nome}\n*Telefone:* ${user.telefone||"-"}\n\n*Itens:*\n${itens}\n\n*Total:* R$ ${pedidoFeito.total.toFixed(2)}\n*Pagamento:* ${pedidoFeito.pagamento}`;
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`,"_blank");
   }
 
@@ -269,6 +270,7 @@ function Vitrine({ products, loading, user, onLogout, onShowAuth, config: config
           <span>Total</span><span style={{color:"#16a34a"}}>R$ {pedidoFeito.total.toFixed(2)}</span>
         </div>
         <div style={{textAlign:"center",marginTop:6,color:"#64748b",fontSize:13}}>Pagamento: {pedidoFeito.pagamento}</div>
+        {pedidoFeito.numero && <div style={{textAlign:"center",marginTop:6,background:"#dbeafe",borderRadius:8,padding:"6px 10px",fontSize:13,color:"#1d4ed8",fontWeight:700}}>Pedido #{String(pedidoFeito.numero).padStart(3,"0")}</div>}
         <div style={{textAlign:"center",marginTop:6,background:"#fef3c7",borderRadius:8,padding:"6px 10px",fontSize:12,color:"#92400e",fontWeight:600}}>⏳ Aguardando confirmação</div>
       </div>
       <button onClick={abrirWhatsApp} style={{marginTop:24,width:"100%",maxWidth:360,padding:"16px 0",borderRadius:14,border:"none",background:"#25d366",color:"#fff",fontWeight:800,fontSize:17,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,boxShadow:"0 8px 24px rgba(37,211,102,0.4)"}}>
@@ -1278,6 +1280,7 @@ function VendasView({ sales, loading, monthRevenue, monthlySales, desktop, produ
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
           <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
             <div style={{fontSize:12,color:"#94a3b8"}}>{new Date(s.created_at).toLocaleDateString("pt-BR")}</div>
+            {s.numero && <span style={{background:"#dbeafe",color:"#1d4ed8",borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700}}>#{String(s.numero).padStart(3,"0")}</span>}
             {s.pagamento&&<span style={{background:"#f1f5f9",borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700,color:"#475569"}}>{s.pagamento}</span>}
             {s.cliente&&<span style={{fontSize:12,color:"#6366f1",fontWeight:600}}>{s.cliente}</span>}
           </div>
