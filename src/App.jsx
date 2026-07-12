@@ -234,7 +234,7 @@ function Vitrine({ products, loading, user, onLogout, onShowAuth, config: config
       const [venda] = await db.insert("vendas",{usuario_id:user.id,cliente:user.nome,total:+cartTotal.toFixed(2),pagamento,status:"pendente"});
       await db.insert("venda_itens",cart.map(i=>({venda_id:venda.id,produto_id:i.productId,product_name:i.productName,flavor:i.flavor,qty:i.qty,price:i.price})));
       // Notificar admin por e-mail
-      fetch(`${SUPABASE_URL}/functions/v1/notify-new-order`, {
+      fetch(`${SUPABASE_URL}/functions/v1/smart-action`, {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` },
         body: JSON.stringify({ cliente: user.nome, total: cartTotal, pagamento, numero: venda.numero, items: cart.map(i=>({ product_name: i.productName, flavor: i.flavor, qty: i.qty, price: i.price })) })
