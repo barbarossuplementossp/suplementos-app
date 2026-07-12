@@ -233,7 +233,13 @@ function Vitrine({ products, loading, user, onLogout, onShowAuth, config: config
     try {
       const [venda] = await db.insert("vendas",{usuario_id:user.id,cliente:user.nome,total:+cartTotal.toFixed(2),pagamento,status:"pendente"});
       await db.insert("venda_itens",cart.map(i=>({venda_id:venda.id,produto_id:i.productId,product_name:i.productName,flavor:i.flavor,qty:i.qty,price:i.price})));
-      setPedidoFeito({cart:[...cart],total:cartTotal,pagamento});
+      // Notificar admin por e-mail
+      fetch(`${SUPABASE_URL}/functions/v1/notify-new-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` },
+        body: JSON.stringify({ cliente: user.nome, total: cartTotal, pagamento, numero: venda.numero, items: cart.map(i=>({ product_name: i.productName, flavor: i.flavor, qty: i.qty, price: i.price })) })
+      }).catch(()=>{});
+      setPedidoFeito({cart:[...cart],total:cartTotal,pagamento,numero:venda.numero});
       setCart([]); setPagamento(""); setShowCart(false);
     } catch { showToast("Erro ao registrar pedido.","error"); }
     finally { setSubmitting(false); }
