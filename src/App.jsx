@@ -502,8 +502,8 @@ function ProductForm({ initial, onSave, onClose }) {
 
 // ── ADMIN MOBILE ─────────────────────────────────────────────
 function AdminMobile({ data, actions }) {
-  const { products, pedidos, rejeitados, sales, usuarios, config, loadingP, loadingPedidos, loadingS, alertDays, alerts, totalValue, monthRevenue, monthlySales } = data;
-  const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, handleToggleProduct, handleBackup, saveConfig, savingConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast } = actions;
+  const { products, pedidos, rejeitados, sales, usuarios, entradas, loadingEntradas, config, loadingP, loadingPedidos, loadingS, alertDays, alerts, totalValue, monthRevenue, monthlySales } = data;
+  const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, handleToggleProduct, handleRegistrarEntrada, handleBackup, saveConfig, savingConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast } = actions;
   const [tab, setTab] = useState("pedidos");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("Todos");
@@ -612,6 +612,7 @@ function AdminMobile({ data, actions }) {
         {tab==="vendas" && <VendasView sales={sales} loading={loadingS} monthRevenue={monthRevenue} monthlySales={monthlySales} products={products}/>}
         {tab==="clientes" && <ClientesView sales={sales} loadingS={loadingS} usuarios={usuarios}/>}
         {tab==="alertas" && <AlertasView alerts={alerts} alertDays={alertDays} onEdit={p=>{setEditProduct({...p,minQty:p.min_qty,costPrice:p.cost_price,foto_url:p.foto_url||'',descricao:p.descricao||''});setShowAddProduct(true);}}/>}
+        {tab==="entradas" && <EntradasView products={products} entradas={entradas} loading={loadingEntradas} onRegistrar={handleRegistrarEntrada}/>}
         {tab==="config" && <ConfigView config={config} setConfig={setConfig} onSave={saveConfig} saving={savingConfig} onBackup={handleBackup}/>}
       </div>
       {toast&&<div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",background:toast.type==="error"?"#ef4444":toast.type==="info"?"#64748b":"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:12,fontWeight:700,fontSize:14,zIndex:300,maxWidth:"90vw",textAlign:"center"}}>{toast.msg}</div>}
@@ -621,8 +622,8 @@ function AdminMobile({ data, actions }) {
 
 // ── ADMIN DESKTOP ─────────────────────────────────────────────
 function AdminDesktop({ data, actions }) {
-  const { products, pedidos, rejeitados, sales, usuarios, config, loadingP, loadingPedidos, loadingS, alertDays, alerts, totalValue, monthRevenue, monthlySales } = data;
-  const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, handleToggleProduct, handleBackup, saveConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast, savingConfig } = actions;
+  const { products, pedidos, rejeitados, sales, usuarios, entradas, loadingEntradas, config, loadingP, loadingPedidos, loadingS, alertDays, alerts, totalValue, monthRevenue, monthlySales } = data;
+  const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, handleToggleProduct, handleRegistrarEntrada, handleBackup, saveConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast, savingConfig } = actions;
   const [tab, setTab] = useState("overview");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("Todos");
@@ -642,6 +643,7 @@ function AdminDesktop({ data, actions }) {
     { id:"vendas",    icon:"💰", label:"Vendas" },
     { id:"clientes",  icon:"👥", label:"Clientes" },
     { id:"alertas",   icon:"⚠️",  label:"Alertas", badge: alerts.length, badgeColor:"#ef4444" },
+    { id:"entradas",  icon:"📥", label:"Entradas" },
     { id:"config",    icon:"⚙️",  label:"Config" },
   ];
 
@@ -909,6 +911,13 @@ function AdminDesktop({ data, actions }) {
         )}
 
         {/* CONFIG */}
+        {tab==="entradas" && (
+          <div>
+            <div style={{fontSize:22,fontWeight:800,color:"#0f172a",marginBottom:6}}>📥 Entradas de Estoque</div>
+            <div style={{color:"#64748b",fontSize:14,marginBottom:20}}>Registre reposições de estoque com histórico completo.</div>
+            <EntradasView products={products} entradas={entradas} loading={loadingEntradas} onRegistrar={handleRegistrarEntrada}/>
+          </div>
+        )}
         {tab==="config" && (
           <div>
             <ConfigView config={config} setConfig={setConfig} onSave={saveConfig} saving={savingConfig} onBackup={handleBackup}/>
@@ -1415,6 +1424,132 @@ function ConfigView({ config, setConfig, onSave, saving, onBackup }) {
   );
 }
 
+
+// ── ENTRADAS VIEW ────────────────────────────────────────────
+function EntradasView({ products, entradas, loading, onRegistrar }) {
+  const hoje = new Date().toISOString().slice(0,10);
+  const [form, setForm] = useState({ produto_id:"", product_name:"", flavor:"", qty:1, custo_unit:"", fornecedor:"", data_entrada:hoje });
+  const [submitting, setSubmitting] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  const produtosFiltrados = (products||[]).filter(p =>
+    (p.name+" "+p.flavor).toLowerCase().includes(search.toLowerCase())
+  );
+
+  function selecionarProduto(p) {
+    set("produto_id", p.id);
+    set("product_name", p.name);
+    set("flavor", p.flavor);
+    set("custo_unit", p.cost_price || "");
+    setSearch(p.name+" ("+p.flavor+")");
+  }
+
+  async function handleSubmit() {
+    if (!form.produto_id || !form.qty || !form.custo_unit) {
+      alert("Preencha produto, quantidade e custo unitário.");
+      return;
+    }
+    setSubmitting(true);
+    await onRegistrar({ ...form, qty: +form.qty, custo_unit: +form.custo_unit });
+    setForm({ produto_id:"", product_name:"", flavor:"", qty:1, custo_unit:"", fornecedor:"", data_entrada:hoje });
+    setSearch("");
+    setSubmitting(false);
+  }
+
+  const fi = { width:"100%", padding:"9px 12px", borderRadius:10, border:"1px solid #e2e8f0", fontSize:14, outline:"none", background:"#fff", boxSizing:"border-box" };
+  const lb = { fontSize:12, fontWeight:700, color:"#64748b", display:"block", marginBottom:4 };
+
+  return (
+    <div>
+      {/* Form */}
+      <div style={{background:"#fff",borderRadius:14,padding:20,boxShadow:"0 1px 4px rgba(0,0,0,0.07)",marginBottom:20}}>
+        <div style={{fontWeight:700,fontSize:15,marginBottom:16,color:"#0f172a"}}>📥 Registrar entrada</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+          {/* Produto search */}
+          <div style={{gridColumn:"1/-1",position:"relative"}}>
+            <label style={lb}>Produto</label>
+            <input style={fi} placeholder="Buscar produto..." value={search} onChange={e=>{ setSearch(e.target.value); set("produto_id",""); }}/>
+            {search && !form.produto_id && produtosFiltrados.length>0 && (
+              <div style={{position:"absolute",top:"100%",left:0,right:0,background:"#fff",border:"1px solid #e2e8f0",borderRadius:10,boxShadow:"0 4px 12px rgba(0,0,0,0.1)",zIndex:50,maxHeight:200,overflowY:"auto"}}>
+                {produtosFiltrados.map(p=>(
+                  <div key={p.id} onClick={()=>selecionarProduto(p)} style={{padding:"10px 14px",cursor:"pointer",borderBottom:"1px solid #f1f5f9",fontSize:13}}
+                    onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"} onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
+                    <div style={{fontWeight:600}}>{p.name}</div>
+                    <div style={{fontSize:12,color:"#6366f1"}}>{p.flavor} · {p.qty} em estoque</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div>
+            <label style={lb}>Quantidade</label>
+            <input style={fi} type="number" min={1} value={form.qty} onChange={e=>set("qty",e.target.value)}/>
+          </div>
+          <div>
+            <label style={lb}>Custo unitário (R$)</label>
+            <input style={fi} type="number" step="0.01" min={0} value={form.custo_unit} onChange={e=>set("custo_unit",e.target.value)} placeholder="0,00"/>
+          </div>
+          <div>
+            <label style={lb}>Fornecedor</label>
+            <input style={fi} value={form.fornecedor} onChange={e=>set("fornecedor",e.target.value)} placeholder="Nome do fornecedor"/>
+          </div>
+          <div>
+            <label style={lb}>Data da entrada</label>
+            <input style={fi} type="date" value={form.data_entrada} onChange={e=>set("data_entrada",e.target.value)}/>
+          </div>
+        </div>
+        {/* Preview */}
+        {form.produto_id && form.qty && form.custo_unit && (
+          <div style={{background:"#f0fdf4",borderRadius:8,padding:"10px 14px",marginBottom:12,fontSize:13,color:"#16a34a",fontWeight:600}}>
+            Total desta entrada: R$ {(+form.qty * +form.custo_unit).toFixed(2)} · Custo unit. será atualizado para R$ {(+form.custo_unit).toFixed(2)}
+          </div>
+        )}
+        <button onClick={handleSubmit} disabled={submitting} style={{width:"100%",padding:12,borderRadius:10,border:"none",background:"#0f172a",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer",opacity:submitting?0.7:1}}>
+          {submitting ? "Registrando..." : "✅ Registrar entrada e atualizar estoque"}
+        </button>
+      </div>
+
+      {/* Histórico */}
+      <div style={{fontWeight:700,fontSize:15,marginBottom:12,color:"#0f172a"}}>📋 Histórico de entradas</div>
+      {loading ? <Spinner/> : entradas.length===0 ? (
+        <div style={{background:"#fff",borderRadius:14,padding:40,textAlign:"center",color:"#94a3b8"}}>
+          <div style={{fontSize:36,marginBottom:8}}>📭</div>
+          <div style={{fontWeight:600}}>Nenhuma entrada registrada ainda</div>
+        </div>
+      ) : (
+        <div style={{background:"#fff",borderRadius:14,boxShadow:"0 1px 4px rgba(0,0,0,0.07)",overflow:"hidden"}}>
+          <table style={{width:"100%",borderCollapse:"collapse"}}>
+            <thead>
+              <tr style={{background:"#f8fafc",borderBottom:"2px solid #e2e8f0"}}>
+                {["Data","Produto","Qtd","Custo Unit.","Total","Fornecedor"].map(h=>(
+                  <th key={h} style={{textAlign:"left",padding:"10px 14px",fontSize:12,color:"#64748b",fontWeight:700}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {entradas.map(e=>(
+                <tr key={e.id} style={{borderBottom:"1px solid #f1f5f9"}}>
+                  <td style={{padding:"10px 14px",fontSize:13,color:"#64748b"}}>{new Date(e.data_entrada+"T12:00").toLocaleDateString("pt-BR")}</td>
+                  <td style={{padding:"10px 14px"}}>
+                    <div style={{fontWeight:600,fontSize:13}}>{e.product_name}</div>
+                    <div style={{fontSize:11,color:"#6366f1"}}>{e.flavor}</div>
+                  </td>
+                  <td style={{padding:"10px 14px",fontWeight:700,fontSize:14,color:"#0f172a"}}>{e.qty} un</td>
+                  <td style={{padding:"10px 14px",fontSize:13}}>R$ {Number(e.custo_unit).toFixed(2)}</td>
+                  <td style={{padding:"10px 14px",fontWeight:700,fontSize:13,color:"#16a34a"}}>R$ {Number(e.custo_total).toFixed(2)}</td>
+                  <td style={{padding:"10px 14px",fontSize:13,color:"#64748b"}}>{e.fornecedor||"—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── ADMIN VITRINE VIEW ───────────────────────────────────────
 function AdminVitrineView({ products, onToggle }) {
   const [search, setSearch] = useState("");
@@ -1748,6 +1883,8 @@ function AdminPanel({ onLogout, onConfigSaved }) {
   const [rejeitados, setRejeitados] = useState([]);
   const [sales, setSales] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
+  const [entradas, setEntradas] = useState([]);
+  const [loadingEntradas, setLoadingEntradas] = useState(true);
   const [config, setConfig] = useState({ alerta_vencimento_dias:60, nome_loja:'Suplementos', subtitulo:'Loja de', logo_url:'', header_color1:'#0f172a', header_color2:'#1e3a5f' });
   const [loadingP, setLoadingP] = useState(true);
   const [loadingPedidos, setLoadingPedidos] = useState(true);
@@ -1777,11 +1914,15 @@ function AdminPanel({ onLogout, onConfigSaved }) {
   const loadUsuarios = useCallback(async()=>{
     try { setUsuarios(await db.select("usuarios","select=id,nome,telefone,email")); } catch {}
   },[]);
+  const loadEntradas = useCallback(async()=>{
+    setLoadingEntradas(true);
+    try { setEntradas(await db.select("entradas_estoque","")); } catch {} finally { setLoadingEntradas(false); }
+  },[]);
   const loadConfig = useCallback(async()=>{
     try { const c=await db.select("configuracoes","id=eq.default",false); if(c.length) setConfig(c[0]); } catch {}
   },[]);
 
-  useEffect(()=>{ loadProducts(); loadPedidos(); loadSales(); loadRejeitados(); loadUsuarios(); loadConfig(); },[loadProducts,loadPedidos,loadSales,loadRejeitados,loadUsuarios,loadConfig]);
+  useEffect(()=>{ loadProducts(); loadPedidos(); loadSales(); loadRejeitados(); loadUsuarios(); loadEntradas(); loadConfig(); },[loadProducts,loadPedidos,loadSales,loadRejeitados,loadUsuarios,loadEntradas,loadConfig]);
 
   async function confirmarPedido(pedido) {
     try {
@@ -1815,6 +1956,32 @@ function AdminPanel({ onLogout, onConfigSaved }) {
     } catch { showToast("Erro ao alterar visibilidade","error"); }
   }
 
+  async function handleRegistrarEntrada(data) {
+    try {
+      // Insert entrada
+      await db.insert("entradas_estoque", {
+        produto_id: data.produto_id,
+        product_name: data.product_name,
+        flavor: data.flavor,
+        qty: data.qty,
+        custo_unit: data.custo_unit,
+        custo_total: +(data.qty * data.custo_unit).toFixed(2),
+        fornecedor: data.fornecedor || "",
+        data_entrada: data.data_entrada
+      });
+      // Update product qty and cost_price
+      const product = products.find(p => p.id === data.produto_id);
+      if (product) {
+        await db.update("produtos", data.produto_id, {
+          qty: product.qty + data.qty,
+          cost_price: data.custo_unit
+        });
+      }
+      await loadProducts();
+      await loadEntradas();
+      showToast("Entrada registrada! Estoque atualizado ✅");
+    } catch(e) { showToast("Erro ao registrar entrada", "error"); }
+  }
   async function saveConfig() {
     setSavingConfig(true);
     try {
@@ -1898,8 +2065,8 @@ function AdminPanel({ onLogout, onConfigSaved }) {
   const monthlySales = sales.filter(s=>s.created_at?.startsWith(monthStr));
   const monthRevenue = monthlySales.reduce((s,v)=>s+Number(v.total),0);
 
-  const sharedData = { products,pedidos,rejeitados,sales,usuarios,config,loadingP,loadingPedidos,loadingS,alertDays,alerts,totalValue,monthRevenue,monthlySales };
-  const sharedActions = { confirmarPedido,rejeitarPedido,handleSaveProduct,handleDelete,handleToggleProduct,handleBackup,saveConfig,savingConfig,setConfig,showAddProduct,setShowAddProduct,editProduct,setEditProduct,toast,onLogout };
+  const sharedData = { products,pedidos,rejeitados,sales,usuarios,entradas,loadingEntradas,config,loadingP,loadingPedidos,loadingS,alertDays,alerts,totalValue,monthRevenue,monthlySales };
+  const sharedActions = { confirmarPedido,rejeitarPedido,handleSaveProduct,handleDelete,handleToggleProduct,handleRegistrarEntrada,handleBackup,saveConfig,savingConfig,setConfig,showAddProduct,setShowAddProduct,editProduct,setEditProduct,toast,onLogout };
 
   return (
     <>
