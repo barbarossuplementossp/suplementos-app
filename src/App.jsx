@@ -503,7 +503,7 @@ function ProductForm({ initial, onSave, onClose }) {
 // ── ADMIN MOBILE ─────────────────────────────────────────────
 function AdminMobile({ data, actions }) {
   const { products, pedidos, rejeitados, sales, usuarios, entradas, loadingEntradas, config, loadingP, loadingPedidos, loadingS, alertDays, alerts, totalValue, monthRevenue, monthlySales } = data;
-  const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, handleToggleProduct, handleRegistrarEntrada, handleBackup, saveConfig, savingConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast } = actions;
+  const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, handleToggleProduct, handleRegistrarEntrada, handleVendaManual, handleBackup, saveConfig, savingConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast, showVendaManual, setShowVendaManual } = actions;
   const [tab, setTab] = useState("pedidos");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("Todos");
@@ -567,7 +567,13 @@ function AdminMobile({ data, actions }) {
         </div>
       </div>
       <div style={{padding:16}}>
-        {tab==="pedidos" && <PedidosView pedidos={pedidos} rejeitados={rejeitados} loading={loadingPedidos} onConfirm={confirmarPedido} onReject={rejeitarPedido}/>}
+        {tab==="pedidos" && <>
+          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
+            <button onClick={()=>setShowVendaManual(true)} style={{padding:"8px 14px",borderRadius:10,border:"none",background:"#6366f1",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>+ Venda manual</button>
+          </div>
+          <PedidosView pedidos={pedidos} rejeitados={rejeitados} loading={loadingPedidos} onConfirm={confirmarPedido} onReject={rejeitarPedido}/>
+          {showVendaManual && <VendaManualModal products={products} onSave={handleVendaManual} onClose={()=>setShowVendaManual(false)}/>}
+        </>}
         {tab==="estoque" && (
           <>
             <div style={{display:"flex",gap:8,marginBottom:12}}>
@@ -623,7 +629,7 @@ function AdminMobile({ data, actions }) {
 // ── ADMIN DESKTOP ─────────────────────────────────────────────
 function AdminDesktop({ data, actions }) {
   const { products, pedidos, rejeitados, sales, usuarios, entradas, loadingEntradas, config, loadingP, loadingPedidos, loadingS, alertDays, alerts, totalValue, monthRevenue, monthlySales } = data;
-  const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, handleToggleProduct, handleRegistrarEntrada, handleBackup, saveConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast, savingConfig } = actions;
+  const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, handleToggleProduct, handleRegistrarEntrada, handleVendaManual, handleBackup, saveConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast, savingConfig, showVendaManual, setShowVendaManual } = actions;
   const [tab, setTab] = useState("overview");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("Todos");
@@ -772,8 +778,12 @@ function AdminDesktop({ data, actions }) {
         {/* PEDIDOS */}
         {tab==="pedidos" && (
           <div>
-            <div style={{fontSize:22,fontWeight:800,color:"#0f172a",marginBottom:20}}>🛒 Pedidos</div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+              <div style={{fontSize:22,fontWeight:800,color:"#0f172a"}}>🛒 Pedidos</div>
+              <button onClick={()=>setShowVendaManual(true)} style={{padding:"9px 16px",borderRadius:10,border:"none",background:"#6366f1",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>+ Venda manual</button>
+            </div>
             <PedidosView pedidos={pedidos} rejeitados={rejeitados} loading={loadingPedidos} onConfirm={confirmarPedido} onReject={rejeitarPedido} desktop/>
+            {showVendaManual && <VendaManualModal products={products} onSave={handleVendaManual} onClose={()=>setShowVendaManual(false)}/>}
           </div>
         )}
 
@@ -1425,6 +1435,128 @@ function ConfigView({ config, setConfig, onSave, saving, onBackup }) {
 }
 
 
+
+// ── VENDA MANUAL MODAL ───────────────────────────────────────
+function VendaManualModal({ products, onSave, onClose }) {
+  const [cliente, setCliente] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [pagamento, setPagamento] = useState("Pix");
+  const [items, setItems] = useState([]);
+  const [search, setSearch] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const prodFiltrados = (products||[]).filter(p =>
+    p.ativo !== false && (p.name+" "+p.flavor).toLowerCase().includes(search.toLowerCase())
+  );
+
+  function addItem(p) {
+    const exists = items.find(i => i.produto_id === p.id);
+    if (exists) {
+      setItems(items.map(i => i.produto_id===p.id ? {...i, qty: i.qty+1} : i));
+    } else {
+      setItems([...items, { produto_id:p.id, product_name:p.name, flavor:p.flavor, qty:1, price:p.price }]);
+    }
+    setSearch("");
+  }
+
+  function updateQty(id, qty) {
+    if (qty < 1) { setItems(items.filter(i=>i.produto_id!==id)); return; }
+    setItems(items.map(i => i.produto_id===id ? {...i, qty} : i));
+  }
+
+  const total = items.reduce((s,i) => s + i.price*i.qty, 0);
+
+  async function handleSubmit() {
+    if (!cliente.trim()) { alert("Informe o nome do cliente."); return; }
+    if (items.length===0) { alert("Adicione pelo menos um produto."); return; }
+    setSubmitting(true);
+    await onSave({ cliente: cliente.trim()+(telefone?" ("+telefone+")":""), total, pagamento, items });
+    setSubmitting(false);
+  }
+
+  const fi = { width:"100%", padding:"9px 12px", borderRadius:10, border:"1px solid #e2e8f0", fontSize:14, outline:"none", background:"#fff", boxSizing:"border-box" };
+  const lb = { fontSize:12, fontWeight:700, color:"#64748b", display:"block", marginBottom:4 };
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onClose}>
+      <div style={{background:"#fff",borderRadius:20,width:"100%",maxWidth:500,maxHeight:"90vh",overflowY:"auto",padding:24}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+          <div style={{fontSize:18,fontWeight:800,color:"#0f172a"}}>🧾 Venda Manual</div>
+          <button onClick={onClose} style={{background:"#f1f5f9",border:"none",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:15}}>✕</button>
+        </div>
+
+        {/* Cliente */}
+        <div style={{marginBottom:12}}>
+          <label style={lb}>Nome do cliente *</label>
+          <input style={fi} value={cliente} onChange={e=>setCliente(e.target.value)} placeholder="Nome completo"/>
+        </div>
+        <div style={{marginBottom:16}}>
+          <label style={lb}>Telefone (opcional)</label>
+          <input style={fi} value={telefone} onChange={e=>setTelefone(e.target.value)} placeholder="(11) 99999-9999"/>
+        </div>
+
+        {/* Buscar produto */}
+        <div style={{marginBottom:12,position:"relative"}}>
+          <label style={lb}>Adicionar produto</label>
+          <input style={fi} placeholder="Buscar produto..." value={search} onChange={e=>setSearch(e.target.value)}/>
+          {search && prodFiltrados.length>0 && (
+            <div style={{position:"absolute",top:"100%",left:0,right:0,background:"#fff",border:"1px solid #e2e8f0",borderRadius:10,boxShadow:"0 4px 12px rgba(0,0,0,0.1)",zIndex:50,maxHeight:180,overflowY:"auto"}}>
+              {prodFiltrados.map(p=>(
+                <div key={p.id} onClick={()=>addItem(p)} style={{padding:"10px 14px",cursor:"pointer",borderBottom:"1px solid #f1f5f9",fontSize:13}}
+                  onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"} onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
+                  <div style={{fontWeight:600}}>{p.name} <span style={{color:"#6366f1"}}>{p.flavor}</span></div>
+                  <div style={{fontSize:12,color:"#94a3b8"}}>R$ {Number(p.price).toFixed(2)} · {p.qty} em estoque</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Itens */}
+        {items.length>0 && (
+          <div style={{background:"#f8fafc",borderRadius:12,padding:12,marginBottom:16}}>
+            {items.map(item=>(
+              <div key={item.produto_id} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8,padding:"8px 10px",background:"#fff",borderRadius:8}}>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:600,fontSize:13}}>{item.product_name}</div>
+                  <div style={{fontSize:11,color:"#6366f1"}}>{item.flavor}</div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <button onClick={()=>updateQty(item.produto_id,item.qty-1)} style={{width:28,height:28,borderRadius:6,border:"none",background:"#fee2e2",color:"#dc2626",fontWeight:800,cursor:"pointer",fontSize:14}}>−</button>
+                  <span style={{fontWeight:700,minWidth:20,textAlign:"center"}}>{item.qty}</span>
+                  <button onClick={()=>updateQty(item.produto_id,item.qty+1)} style={{width:28,height:28,borderRadius:6,border:"none",background:"#d1fae5",color:"#16a34a",fontWeight:800,cursor:"pointer",fontSize:14}}>+</button>
+                </div>
+                <div style={{fontWeight:700,fontSize:13,minWidth:70,textAlign:"right"}}>R$ {(item.price*item.qty).toFixed(2)}</div>
+              </div>
+            ))}
+            <div style={{display:"flex",justifyContent:"space-between",padding:"8px 10px",fontWeight:800,fontSize:15,borderTop:"2px solid #e2e8f0",marginTop:4}}>
+              <span>Total</span><span style={{color:"#16a34a"}}>R$ {total.toFixed(2)}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Pagamento */}
+        <div style={{marginBottom:20}}>
+          <label style={lb}>Forma de pagamento</label>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {PAGAMENTOS.map(p=>(
+              <button key={p} onClick={()=>setPagamento(p)} style={{padding:"7px 14px",borderRadius:8,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,background:pagamento===p?"#0f172a":"#e2e8f0",color:pagamento===p?"#fff":"#475569"}}>{p}</button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{background:"#fef3c7",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:12,color:"#92400e"}}>
+          ⚠️ A venda será criada como <b>pendente</b>. Confirme na aba Pedidos para baixar o estoque.
+        </div>
+
+        <button onClick={handleSubmit} disabled={submitting||!cliente||items.length===0} style={{width:"100%",padding:13,borderRadius:12,border:"none",background:"#0f172a",color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",opacity:(submitting||!cliente||items.length===0)?0.5:1}}>
+          {submitting?"Registrando...":"✅ Criar pedido pendente"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── ENTRADAS VIEW ────────────────────────────────────────────
 function EntradasView({ products, entradas, loading, onRegistrar }) {
   const hoje = new Date().toISOString().slice(0,10);
@@ -1885,6 +2017,7 @@ function AdminPanel({ onLogout, onConfigSaved }) {
   const [usuarios, setUsuarios] = useState([]);
   const [entradas, setEntradas] = useState([]);
   const [loadingEntradas, setLoadingEntradas] = useState(true);
+  const [showVendaManual, setShowVendaManual] = useState(false);
   const [config, setConfig] = useState({ alerta_vencimento_dias:60, nome_loja:'Suplementos', subtitulo:'Loja de', logo_url:'', header_color1:'#0f172a', header_color2:'#1e3a5f' });
   const [loadingP, setLoadingP] = useState(true);
   const [loadingPedidos, setLoadingPedidos] = useState(true);
@@ -1982,6 +2115,35 @@ function AdminPanel({ onLogout, onConfigSaved }) {
       showToast("Entrada registrada! Estoque atualizado ✅");
     } catch(e) { showToast("Erro ao registrar entrada", "error"); }
   }
+  async function handleVendaManual(data) {
+    try {
+      // Insert venda com status pendente e flag manual
+      const venda = await db.insert("vendas", {
+        usuario_id: null,
+        cliente: data.cliente,
+        total: data.total,
+        pagamento: data.pagamento,
+        status: "pendente",
+        manual: true
+      });
+      // Insert itens
+      if (venda && venda.id) {
+        await Promise.all(data.items.map(item =>
+          db.insert("venda_itens", {
+            venda_id: venda.id,
+            produto_id: item.produto_id,
+            product_name: item.product_name,
+            flavor: item.flavor,
+            qty: item.qty,
+            price: item.price
+          })
+        ));
+      }
+      await loadPedidos();
+      setShowVendaManual(false);
+      showToast("Venda manual registrada! Confirme na aba Pedidos ✅");
+    } catch(e) { showToast("Erro ao registrar venda manual", "error"); }
+  }
   async function saveConfig() {
     setSavingConfig(true);
     try {
@@ -2066,7 +2228,7 @@ function AdminPanel({ onLogout, onConfigSaved }) {
   const monthRevenue = monthlySales.reduce((s,v)=>s+Number(v.total),0);
 
   const sharedData = { products,pedidos,rejeitados,sales,usuarios,entradas,loadingEntradas,config,loadingP,loadingPedidos,loadingS,alertDays,alerts,totalValue,monthRevenue,monthlySales };
-  const sharedActions = { confirmarPedido,rejeitarPedido,handleSaveProduct,handleDelete,handleToggleProduct,handleRegistrarEntrada,handleBackup,saveConfig,savingConfig,setConfig,showAddProduct,setShowAddProduct,editProduct,setEditProduct,toast,onLogout };
+  const sharedActions = { confirmarPedido,rejeitarPedido,handleSaveProduct,handleDelete,handleToggleProduct,handleRegistrarEntrada,handleVendaManual,handleBackup,saveConfig,showVendaManual,setShowVendaManual,savingConfig,setConfig,showAddProduct,setShowAddProduct,editProduct,setEditProduct,toast,onLogout };
 
   return (
     <>
