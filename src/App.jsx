@@ -503,7 +503,7 @@ function ProductForm({ initial, onSave, onClose }) {
 // ── ADMIN MOBILE ─────────────────────────────────────────────
 function AdminMobile({ data, actions }) {
   const { products, pedidos, rejeitados, sales, usuarios, entradas, loadingEntradas, config, loadingP, loadingPedidos, loadingS, alertDays, alerts, totalValue, monthRevenue, monthlySales } = data;
-  const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, handleToggleProduct, handleRegistrarEntrada, handleVendaManual, handleBackup, saveConfig, savingConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast, showVendaManual, setShowVendaManual } = actions;
+  const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, handleToggleProduct, handleRegistrarEntrada, handleVendaManual, handleVincularVenda, handleBackup, saveConfig, savingConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast, showVendaManual, setShowVendaManual } = actions;
   const [tab, setTab] = useState("pedidos");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("Todos");
@@ -616,7 +616,7 @@ function AdminMobile({ data, actions }) {
         )}
         {tab==="vitrine" && <AdminVitrineView products={products} onToggle={handleToggleProduct}/>}
         {tab==="vendas" && <VendasView sales={sales} loading={loadingS} monthRevenue={monthRevenue} monthlySales={monthlySales} products={products}/>}
-        {tab==="clientes" && <ClientesView sales={sales} loadingS={loadingS} usuarios={usuarios}/>}
+        {tab==="clientes" && <ClientesView sales={sales} loadingS={loadingS} usuarios={usuarios} pedidos={pedidos} onVincular={handleVincularVenda}/>}
         {tab==="alertas" && <AlertasView alerts={alerts} alertDays={alertDays} onEdit={p=>{setEditProduct({...p,minQty:p.min_qty,costPrice:p.cost_price,foto_url:p.foto_url||'',descricao:p.descricao||''});setShowAddProduct(true);}}/>}
         {tab==="entradas" && <EntradasView products={products} entradas={entradas} loading={loadingEntradas} onRegistrar={handleRegistrarEntrada}/>}
         {tab==="config" && <ConfigView config={config} setConfig={setConfig} onSave={saveConfig} saving={savingConfig} onBackup={handleBackup}/>}
@@ -629,7 +629,7 @@ function AdminMobile({ data, actions }) {
 // ── ADMIN DESKTOP ─────────────────────────────────────────────
 function AdminDesktop({ data, actions }) {
   const { products, pedidos, rejeitados, sales, usuarios, entradas, loadingEntradas, config, loadingP, loadingPedidos, loadingS, alertDays, alerts, totalValue, monthRevenue, monthlySales } = data;
-  const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, handleToggleProduct, handleRegistrarEntrada, handleVendaManual, handleBackup, saveConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast, savingConfig, showVendaManual, setShowVendaManual } = actions;
+  const { confirmarPedido, rejeitarPedido, handleSaveProduct, handleDelete, handleToggleProduct, handleRegistrarEntrada, handleVendaManual, handleVincularVenda, handleBackup, saveConfig, setConfig, showAddProduct, setShowAddProduct, editProduct, setEditProduct, toast, savingConfig, showVendaManual, setShowVendaManual } = actions;
   const [tab, setTab] = useState("overview");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("Todos");
@@ -917,7 +917,7 @@ function AdminDesktop({ data, actions }) {
 
         {/* CLIENTES */}
         {tab==="clientes" && (
-          <ClientesView sales={sales} loadingS={loadingS} usuarios={usuarios}/>
+          <ClientesView sales={sales} loadingS={loadingS} usuarios={usuarios} pedidos={pedidos} onVincular={handleVincularVenda}/>
         )}
 
         {/* CONFIG */}
@@ -1786,7 +1786,7 @@ function ClienteCard({ c, isSelected, onClick }) {
   );
 }
 
-function ClienteSidePanel({ selected, onClose }) {
+function ClienteSidePanel({ selected, onClose, todasVendas, onVincular }) {
   const diasSemComprar = Math.floor((new Date() - new Date(selected.ultimaCompra)) / 86400000);
   const inativo = diasSemComprar >= INATIVO_DIAS;
 
@@ -1849,7 +1849,35 @@ function ClienteSidePanel({ selected, onClose }) {
         ))}
       </div>
 
-      {/* Histórico */}
+    
+      {/* Vincular vendas avulsas */}
+      {onVincular && todasVendas && (() => {
+        const nome0 = (selected.nome||"").split(" ")[0].toLowerCase();
+        const avulsas = todasVendas.filter(v =>
+          v.manual === true &&
+          v.cliente !== selected.nome &&
+          v.cliente?.toLowerCase().includes(nome0)
+        );
+        if (!avulsas.length) return null;
+        return (
+          <div style={{background:"#fef3c7",borderRadius:12,padding:14,marginBottom:16}}>
+            <div style={{fontWeight:700,fontSize:13,color:"#92400e",marginBottom:8}}>🔗 Vendas avulsas para vincular ({avulsas.length})</div>
+            <div style={{fontSize:12,color:"#78350f",marginBottom:10}}>Encontramos vendas que podem ser deste cliente:</div>
+            {avulsas.map(v=>(
+              <div key={v.id} style={{background:"#fff",borderRadius:8,padding:"8px 12px",marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:600}}>{v.cliente}</div>
+                  <div style={{fontSize:11,color:"#94a3b8"}}>{new Date(v.created_at).toLocaleDateString("pt-BR")} · R$ {Number(v.total).toFixed(2)}</div>
+                </div>
+                <button onClick={()=>onVincular(v.id, selected.nome)} style={{padding:"4px 10px",borderRadius:6,border:"none",background:"#f59e0b",color:"#fff",fontWeight:700,fontSize:11,cursor:"pointer"}}>
+                  Vincular
+                </button>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+        {/* Histórico */}
       <div style={{fontWeight:700,fontSize:14,color:"#0f172a",marginBottom:10}}>Histórico de pedidos</div>
       <div style={{maxHeight:280,overflowY:"auto",display:"flex",flexDirection:"column",gap:8}}>
         {selected.pedidos.map(p=>(
@@ -1873,7 +1901,7 @@ function ClienteSidePanel({ selected, onClose }) {
   );
 }
 
-function ClientesView({ sales, loadingS, usuarios }) {
+function ClientesView({ sales, loadingS, usuarios, pedidos, onVincular }) {
   const [search, setSearch] = useState("");
   const [subTab, setSubTab] = useState("todos");
   const [selected, setSelected] = useState(null);
@@ -2002,7 +2030,7 @@ function ClientesView({ sales, loadingS, usuarios }) {
         )}
       </div>
 
-      {selected && <ClienteSidePanel selected={selected} onClose={()=>setSelected(null)}/>}
+      {selected && <ClienteSidePanel selected={selected} onClose={()=>setSelected(null)} todasVendas={[...sales,...(pedidos||[])]} onVincular={onVincular}/>}
     </div>
   );
 }
@@ -2144,6 +2172,14 @@ function AdminPanel({ onLogout, onConfigSaved }) {
       showToast("Venda manual registrada! Confirme na aba Pedidos ✅");
     } catch(e) { showToast("Erro ao registrar venda manual", "error"); }
   }
+  async function handleVincularVenda(vendaId, clienteNome) {
+    try {
+      await db.update("vendas", vendaId, { cliente: clienteNome });
+      await loadSales();
+      await loadPedidos();
+      showToast("Venda vinculada com sucesso! ✅");
+    } catch { showToast("Erro ao vincular venda", "error"); }
+  }
   async function saveConfig() {
     setSavingConfig(true);
     try {
@@ -2228,7 +2264,7 @@ function AdminPanel({ onLogout, onConfigSaved }) {
   const monthRevenue = monthlySales.reduce((s,v)=>s+Number(v.total),0);
 
   const sharedData = { products,pedidos,rejeitados,sales,usuarios,entradas,loadingEntradas,config,loadingP,loadingPedidos,loadingS,alertDays,alerts,totalValue,monthRevenue,monthlySales };
-  const sharedActions = { confirmarPedido,rejeitarPedido,handleSaveProduct,handleDelete,handleToggleProduct,handleRegistrarEntrada,handleVendaManual,handleBackup,saveConfig,showVendaManual,setShowVendaManual,savingConfig,setConfig,showAddProduct,setShowAddProduct,editProduct,setEditProduct,toast,onLogout };
+  const sharedActions = { confirmarPedido,rejeitarPedido,handleSaveProduct,handleDelete,handleToggleProduct,handleRegistrarEntrada,handleVendaManual,handleVincularVenda,handleBackup,saveConfig,showVendaManual,setShowVendaManual,savingConfig,setConfig,showAddProduct,setShowAddProduct,editProduct,setEditProduct,toast,onLogout };
 
   return (
     <>
