@@ -1930,8 +1930,13 @@ function ClientesView({ sales, loadingS, usuarios, pedidos, onVincular }) {
   const allClients = Object.values(clientsMap).sort((a,b)=>b.total-a.total);
   const inativos = allClients.filter(c=>Math.floor((new Date()-new Date(c.ultimaCompra))/86400000)>=INATIVO_DIAS);
   const semCompra = (usuarios||[]).filter(u=>!clientsMap[u.nome]);
-  const listBase = subTab==="inativos" ? inativos : allClients;
-  const filtered = listBase.filter(c=>c.nome.toLowerCase().includes(search.toLowerCase()));
+  // "todos" = all usuarios merged with purchase data
+  const todosUsuarios = (usuarios||[]).map(u=>({
+    ...u,
+    ...(clientsMap[u.nome]||{ total:0, pedidos:0, ultimaCompra:null, historico:[] })
+  })).sort((a,b)=>(b.total||0)-(a.total||0));
+  const listBase = subTab==="inativos" ? inativos : subTab==="clientes" ? allClients : subTab==="todos" ? todosUsuarios : allClients;
+  const filtered = listBase.filter(c=>(c.nome||"").toLowerCase().includes(search.toLowerCase()));
   const filteredSemCompra = semCompra.filter(u=>(u.nome||"").toLowerCase().includes(search.toLowerCase()));
 
   if (loadingS) return <Spinner/>;
@@ -1951,9 +1956,10 @@ function ClientesView({ sales, loadingS, usuarios, pedidos, onVincular }) {
         {/* Sub-tabs */}
         <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
           {[
-            ["todos",`Todos (${allClients.length})`],
-            ["inativos",`⏰ +${INATIVO_DIAS}d sem comprar (${inativos.length})`],
-            ["semcompra",`👤 Nunca compraram (${semCompra.length})`]
+            ["todos",`👥 Todos (${usuarios.length})`],
+            ["clientes",`🛒 Clientes (${allClients.length})`],
+            ["semcompra",`🆕 Sem compras (${semCompra.length})`],
+            ["inativos",`⏰ +${INATIVO_DIAS}d ausentes (${inativos.length})`],
           ].map(([id,label])=>(
             <button key={id} onClick={()=>{setSubTab(id);setSelected(null);}} style={{padding:"7px 16px",borderRadius:20,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,background:subTab===id?"#0f172a":"#e2e8f0",color:subTab===id?"#fff":"#475569"}}>
               {label}
@@ -2002,11 +2008,10 @@ function ClientesView({ sales, loadingS, usuarios, pedidos, onVincular }) {
               {filteredSemCompra.length===0&&<div style={{textAlign:"center",color:"#94a3b8",padding:24}}>Nenhum cliente encontrado</div>}
             </div>
           )
-        ) : allClients.length===0 ? (
+        ) : (usuarios||[]).length===0 ? (
           <div style={{background:"#fff",borderRadius:16,padding:48,textAlign:"center",color:"#94a3b8"}}>
             <div style={{fontSize:40,marginBottom:8}}>👥</div>
-            <div style={{fontWeight:600}}>Nenhum cliente ainda</div>
-            <div style={{fontSize:13,marginTop:4}}>Aparecem após pedidos confirmados</div>
+            <div style={{fontWeight:600}}>Nenhum cadastro ainda</div>
           </div>
         ) : filtered.length===0 ? (
           <div style={{background:"#fff",borderRadius:16,padding:32,textAlign:"center",color:"#94a3b8"}}>Nenhum cliente encontrado</div>
@@ -2022,7 +2027,7 @@ function ClientesView({ sales, loadingS, usuarios, pedidos, onVincular }) {
               </thead>
               <tbody>
                 {filtered.map(c=>(
-                  <ClienteCard key={c.nome} c={c} isSelected={selected?.nome===c.nome} onClick={()=>setSelected(selected?.nome===c.nome?null:c)}/>
+                  <ClienteCard key={c.nome||c.id} c={{...c, pedidos: c.pedidos||0, total: c.total||0}} isSelected={selected?.nome===c.nome} onClick={()=>setSelected(selected?.nome===c.nome?null:c)}/>
                 ))}
               </tbody>
             </table>
